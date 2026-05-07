@@ -17,6 +17,7 @@ def test_mlp():
         output_dim=O,
         hidden_dims=[],
         hidden_activation=nn.ReLU(),
+        is_output_normalized=True,
     )
     prediction = model(batch)
     assert prediction.shape == (B, O)

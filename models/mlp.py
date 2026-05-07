@@ -10,7 +10,8 @@ class MLP(nn.Module):
             hidden_activation: nn.Module | None = None,
             output_activation: nn.Module | None = None,
             bias: bool = True,
-            is_normalized: bool = False,
+            is_hidden_normalized: bool = False,
+            is_output_normalized: bool = False,
     ):
         super().__init__()
 
@@ -30,12 +31,22 @@ class MLP(nn.Module):
                 out_features=hidden_dims[0],
                 bias=bias,
             ))
+            if is_hidden_normalized:
+                self.mlp_layers.append(nn.LayerNorm(
+                    normalized_shape=hidden_dims[0],
+                ))
+            if hidden_activation is not None:
+                self.mlp_layers.append(hidden_activation)
             for i in range(len(hidden_dims[1:])):
                 self.mlp_layers.append(nn.Linear(
                     in_features=hidden_dims[i],
-                    out_features=hidden_dims[i+1],
+                    out_features=hidden_dims[i + 1],
                     bias=bias,
                 ))
+                if is_hidden_normalized:
+                    self.mlp_layers.append(nn.LayerNorm(
+                        normalized_shape=hidden_dims[i + 1],
+                    ))
                 if hidden_activation is not None:
                     self.mlp_layers.append(hidden_activation)
             self.mlp_layers.append(nn.Linear(
@@ -43,7 +54,7 @@ class MLP(nn.Module):
                 out_features=output_dim,
                 bias=bias,
             ))
-        if is_normalized:
+        if is_output_normalized:
             self.mlp_layers.append(nn.LayerNorm(
                 normalized_shape=output_dim
             ))
