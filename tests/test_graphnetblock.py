@@ -1,5 +1,4 @@
 from typing import Dict
-
 import torch
 
 from models.graphnetblock import GraphNetBlock

@@ -9,12 +9,20 @@ from models.mlp import MLP
 class GraphNetBlock(nn.Module):
     """Module for message passing"""
 
-    def __init__(
-            self,
-            config: TacGraspNetConfig,
-    ):
+    def __init__(self, config: TacGraspNetConfig):
         super().__init__()
         self._config = config
+
+        # Initialize MLP for node feature update
+        self._node_mlp = MLP(
+            # Input dimension = encoded (aggregated all types of corresponding toward edges + current node) feature dimensions
+            # Note: all features are encoded to the same latent space before
+            input_dim=config.latent_dim * (len(config.edge_types) + 1),
+            output_dim=config.latent_dim,
+            hidden_dims=config.hidden_dims,
+            hidden_activation=nn.ReLU(),
+            is_output_normalized=True,
+        )
 
         # Initialize MLPs for all types of edge (mesh, contact, ...) feature updates
         self._edge_mlps = {}
@@ -28,17 +36,6 @@ class GraphNetBlock(nn.Module):
                 hidden_activation=nn.ReLU(),
                 is_output_normalized=True,
             )
-
-        # Initialize MLP for node feature update
-        self._node_mlp = MLP(
-            # Input dimension = encoded (aggregated all types of corresponding toward edges + current node) feature dimensions
-            # Note: all features are encoded to the same latent space before
-            input_dim=config.latent_dim * (len(config.edge_types) + 1),
-            output_dim=config.latent_dim,
-            hidden_dims=config.hidden_dims,
-            hidden_activation=nn.ReLU(),
-            is_output_normalized=True,
-        )
 
         # Initialize MLP for tetrahedral feature update
         self._tetra_mlp = MLP(

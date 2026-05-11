@@ -1,12 +1,106 @@
+from typing import Dict, Any
 import torch
 from torch import nn
 
 from models.mlp import MLP
+from models.graphnetblock import GraphNetBlock
+from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 
 
 class TacGraspNet(nn.Module):
-    def __init__(self):
+    def __init__(self, config: TacGraspNetConfig):
         super().__init__()
+        self._config = config
 
-    def forward(self, x):
-        return x
+        # Initializations for encoding
+        # Initialize MLP for node feature encoding
+        self._node_encoder = MLP(
+            input_dim=config.node_feature_dim,
+            output_dim=config.latent_dim,
+            hidden_dims=config.hidden_dims,
+            output_activation=nn.ReLU(),
+            is_output_normalized=True,
+        )
+
+        # Initialize MLPs for edge feature encoding
+        self._edge_encoders = {}
+        for edge_type in config.edge_types:
+            self._edge_encoders[edge_type] = MLP(
+                input_dim=config.edge_feature_dims[edge_type],
+                output_dim=config.latent_dim,
+                hidden_dims=config.hidden_dims,
+                output_activation=nn.ReLU(),
+                is_output_normalized=True,
+            )
+
+        # Initialize MLP for tetrahedral feature encoding
+        self._tetra_encoder = MLP(
+            input_dim=config.tetra_feature_dim,
+            output_dim=config.latent_dim,
+            hidden_dims=config.hidden_dims,
+            output_activation=nn.ReLU(),
+            is_output_normalized=True,
+        )
+
+        # Initialization for processing
+        self._graphnetblocks = []
+        for _ in range(self._config.message_passing_steps):
+            self._graphnetblocks.append(GraphNetBlock(
+                config=config,
+            ))
+
+        # Initializations for decoding
+        # Initialize MLP for node decoding
+        self._node_decoder = MLP(
+            input_dim=config.latent_dim,
+            output_dim=config.node_output_dim,
+            hidden_dims=config.hidden_dims,
+            output_activation=nn.ReLU(),
+        )
+
+        # Initialize MLP for tetrahedron decoding
+        self._tetra_decoder = MLP(
+            input_dim=config.latent_dim,
+            output_dim=config.tetra_output_dim,
+            hidden_dims=config.hidden_dims,
+            output_activation=nn.ReLU(),
+        )
+
+    def _encode(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+        new_batch = batch.copy()
+
+        # Encode node features
+        new_batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
+
+        # Encode edge features
+        for edge_type in self._config.edge_types:
+            new_batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
+
+        # Encode tetrahedral features
+        new_batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
+
+        return new_batch
+
+    def _decode(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+        new_batch = batch.copy()
+
+        # Decode node features
+        new_batch["nodes.outputs"] = self._node_decoder(batch["nodes.features"])
+
+        # Decode tetrahedral features
+        new_batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
+
+        return new_batch
+
+    def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+        # Encode
+        batch = self._encode(batch)
+
+        # Process
+        for graphnetblock in self._graphnetblocks:
+            batch = graphnetblock(batch)
+
+        # Decode
+        batch = self._decode(batch)
+
+        return batch
