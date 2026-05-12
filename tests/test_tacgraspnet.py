@@ -59,3 +59,7 @@ def test_tacgraspnet():
     assert isinstance(batch, Dict)
     assert batch["nodes.outputs"].shape == (V, D_V_OUTPUT)
     assert batch["tetrahedra.outputs"].shape == (T, D_T_OUTPUT)
+
+if __name__ == "__main__":
+    test_tacgraspnet()
+    print("Test passed.")

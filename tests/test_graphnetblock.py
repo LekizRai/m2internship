@@ -44,3 +44,7 @@ def test_graphnetblock():
     assert batch["mesh_edges.features"].shape == (E_MESH, D_E_MESH)
     assert batch["contact_edges.features"].shape == (E_CONTACT, D_E_CONTACT)
     assert batch["tetrahedra.features"].shape == (T, D_T)
+
+if __name__ == "__main__":
+    test_graphnetblock()
+    print("Test passed.")
