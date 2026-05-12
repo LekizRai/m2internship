@@ -1,63 +1,74 @@
+from typing import Dict, List
+from dataclasses import dataclass, field
 import torch
 
-# TODO: Last decoder layer having normalization of not, normalization or not, separate decoders for node and tetrahedron or not
+from commons.config import Config
 
-class TacGraspNetConfig:
-    def __init__(self):
-        ########################################
-        ## General configuration
-        ########################################
+# TODO:
+#  Attaching to device (data),
+#  Last decoder layer having normalization of not,
+#  Normalization or not,
+#  Separate decoders for node and tetrahedron or not
 
-        # Node configuration
-        self.node_feature_dim = 6 # Node velocity (3) + number of node types (3)
+@dataclass
+class TacGraspNetConfig(Config):
+    ########################################
+    ## General configuration
+    ########################################
 
-        # Edge configuration
-        self.edge_feature_dims = {
-            "mesh_edges": 4, # Relative displacement in template (rest object) (3) + its norm (1)
-            # "mesh": 4, # Relative displacement in first and second frame (6) + their norm (2)
-            "contact_edges": 5, # Relative displacement in current frame (3) + its norm (1) + applied force in contact (1)
-        }
-        self.edge_types = ["mesh_edges", "contact_edges"]
+    # Node configuration
+    node_feature_dim: int = 6 # Node position (3) + number of node types (3)
 
-        # Tetrahedron configuration
-        self.is_tetra_used = True
-        self.tetra_feature_dim = 1 # Stress (1)
+    # Edge configuration
+    edge_feature_dims: Dict[str, int] = field(default_factory=lambda: {
+        "mesh_edges": 4, # Relative displacement in template (rest object) (3) + its norm (1)
+        # "mesh": 4, # Relative displacement in first and second frame (6) + their norm (2)
+        "contact_edges": 5, # Relative displacement in current frame (3) + its norm (1) + applied force in contact (1)
+    })
+    edge_types: List[str] = field(default_factory=lambda: ["mesh_edges", "contact_edges"])
 
-        # Global node configuration
-        self.global_node_feature_dim = None # TODO
+    # Tetrahedron configuration
+    is_tetra_used: bool = True
+    tetra_feature_dim: int = 1 # Stress (1)
 
-        # Output configuration
-        self.node_output_dim = 3 # Deformation (acceleration?) (3)
-        self.tetra_output_dim = 1 # Stress (1)
-        # self.output_dim = 4 # Deformation (acceleration?) (3) + stress (1)
+    # Global node configuration
+    global_node_feature_dim: int = 0 # TODO
 
-        # MLPs configuration
-        # The same hidden configuration for all updating MLPs in GraphNetBlock
-        self.n_hidden_layers = 2
+    # Output configuration
+    node_output_dim: int = 3 # Deformation (acceleration?) (3)
+    tetra_output_dim: int = 1 # Stress (1)
+    # self.output_dim = 4 # Deformation (acceleration?) (3) + stress (1)
+
+    # MLPs configuration
+    # The same hidden configuration for all updating MLPs in GraphNetBlock
+    n_hidden_layers: int = 2
+    hidden_dims: List[int] = field(default_factory=lambda: []) # To be defined later in __post_init__
+    # The same latent dimension for all (node, edge, tetrahedral) features in (MLP) encoder
+    latent_dim: int = 128
+
+    # Message passing configuration
+    message_passing_steps: int = 15
+
+    ########################################
+    ## Graph building configuration
+    ########################################
+
+    radius: float = 0.5 # Radius of the ball (neighborhood) for construction of contact edges
+
+    ########################################
+    ## Device configuration
+    ########################################
+
+    # Set up available device
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
+
+    ########################################
+    ## Training configuration
+    ########################################
+
+    def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers
-        # The same latent dimension for all (node, edge, tetrahedral) features in (MLP) encoder
-        self.latent_dim = 128
-
-        # Message passing configuration
-        self.message_passing_steps = 15
-
-        ########################################
-        ## Graph building configuration
-        ########################################
-
-
-
-        ########################################
-        ## Device configuration
-        ########################################
-
-        # Set up available device
-        if torch.cuda.is_available():
-            self.device = torch.device("cuda")
-        else:
-            self.device = torch.device("cpu")
-
-        ########################################
-        ## Training configuration
-        ########################################
     

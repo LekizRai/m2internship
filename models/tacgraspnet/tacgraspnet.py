@@ -20,7 +20,7 @@ class TacGraspNet(nn.Module):
             hidden_dims=config.hidden_dims,
             output_activation=nn.ReLU(),
             is_output_normalized=True,
-        )
+        ).to(config.device)
 
         # Initialize MLPs for edge feature encoding
         self._edge_encoders = {}
@@ -31,7 +31,7 @@ class TacGraspNet(nn.Module):
                 hidden_dims=config.hidden_dims,
                 output_activation=nn.ReLU(),
                 is_output_normalized=True,
-            )
+            ).to(config.device)
 
         # Initialize MLP for tetrahedral feature encoding
         self._tetra_encoder = MLP(
@@ -40,7 +40,7 @@ class TacGraspNet(nn.Module):
             hidden_dims=config.hidden_dims,
             output_activation=nn.ReLU(),
             is_output_normalized=True,
-        )
+        ).to(config.device)
 
         # Initialization for processing
         self._graphnetblocks = []
@@ -56,7 +56,7 @@ class TacGraspNet(nn.Module):
             output_dim=config.node_output_dim,
             hidden_dims=config.hidden_dims,
             output_activation=nn.ReLU(),
-        )
+        ).to(config.device)
 
         # Initialize MLP for tetrahedron decoding
         self._tetra_decoder = MLP(
@@ -64,7 +64,7 @@ class TacGraspNet(nn.Module):
             output_dim=config.tetra_output_dim,
             hidden_dims=config.hidden_dims,
             output_activation=nn.ReLU(),
-        )
+        ).to(config.device)
 
     def _encode(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
         new_batch = batch.copy()

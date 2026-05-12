@@ -22,7 +22,7 @@ class GraphNetBlock(nn.Module):
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
             is_output_normalized=True,
-        )
+        ).to(config.device)
 
         # Initialize MLPs for all types of edge (mesh, contact, ...) feature updates
         self._edge_mlps = {}
@@ -35,7 +35,7 @@ class GraphNetBlock(nn.Module):
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
                 is_output_normalized=True,
-            )
+            ).to(config.device)
 
         # Initialize MLP for tetrahedral feature update
         self._tetra_mlp = MLP(
@@ -46,7 +46,7 @@ class GraphNetBlock(nn.Module):
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
             is_output_normalized=True,
-        )
+        ).to(config.device)
 
     def _update_node_features(self, batch: Dict[str, Any]) -> torch.Tensor:
         V = batch["nodes.features"].shape[-2]  # Number of nodes
