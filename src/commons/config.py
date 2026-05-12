@@ -4,4 +4,4 @@ import torch
 
 @dataclass
 class Config:
-    device: torch.Device
+    device: torch.Device = torch.device("cpu")
