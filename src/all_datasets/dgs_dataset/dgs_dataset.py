@@ -21,7 +21,7 @@ from utils.transform import (
     transform,
     extract_normal_from_trans_matrix
 )
-from src.datasets.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
+from all_datasets.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
 """
@@ -73,6 +73,7 @@ class DGSDataset(Dataset):
                         self._datapoints.append(datapoint)
 
     def preprocess(self, file: File, obj: str, traj: int, frame: int) -> Datapoint:
+        print(obj, trạ, frame)
         ########################################
         ## Tactile sensor (ts) data
         ########################################
@@ -120,7 +121,6 @@ class DGSDataset(Dataset):
             # Add elementwise the number of vertices of the left one to separate two sets of tetrahedra (left and right)
             ts_raw_tetras + left_ts_template_verts.shape[-2]
         ], dim=-2) # Tetrahedra
-
 
         # Determine tactile sensor node types
         n_ts_verts = ts_template_verts.shape[-2]
