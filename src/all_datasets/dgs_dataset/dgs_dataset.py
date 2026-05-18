@@ -73,7 +73,7 @@ class DGSDataset(Dataset):
                         self._datapoints.append(datapoint)
 
     def preprocess(self, file: File, obj: str, traj: int, frame: int) -> Datapoint:
-        print(obj, trạ, frame)
+        print(obj, traj, frame)
         ########################################
         ## Tactile sensor (ts) data
         ########################################
