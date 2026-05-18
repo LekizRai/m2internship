@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from models.mlp import MLP
+from models.commons.mlp import MLP
 
 
 def test_mlp():

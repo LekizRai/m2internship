@@ -2,8 +2,8 @@ from typing import Dict, Any
 import torch
 from torch import nn
 
-from models.mlp import MLP
-from models.graphnetblock import GraphNetBlock
+from models.commons.mlp import MLP
+from models.commons.graphnetblock import GraphNetBlock
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 
 

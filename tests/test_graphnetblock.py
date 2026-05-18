@@ -1,7 +1,7 @@
 from typing import Dict
 import torch
 
-from models.graphnetblock import GraphNetBlock
+from models.commons.graphnetblock import GraphNetBlock
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 
 
@@ -31,7 +31,7 @@ def test_graphnetblock():
         "tetrahedra": torch.tensor(
             [[0, 1, 2, 3],
              [4, 5, 6, 7]]
-        ),
+        ).long(),
         "tetrahedra.features": torch.rand(T, D_T),
     }
 

@@ -5,7 +5,6 @@ import torch
 from commons.config import Config
 
 # TODO:
-#  Attaching to device (data),
 #  Last decoder layer having normalization of not,
 #  Normalization or not,
 #  Separate decoders for node and tetrahedron or not
@@ -13,7 +12,18 @@ from commons.config import Config
 @dataclass
 class TacGraspNetConfig(Config):
     ########################################
-    ## General configuration
+    ## Important flags
+    ########################################
+    # TODO
+    # Indicate whether nodes and tetrahedra use two separate or only one (combining) decoder
+    use_node_tetra_separate_decoders: bool = True
+
+    # Indicate whether each message passing step has its own set of MLPs or not
+    # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
+    use_message_passing_separate_mlps: bool = False
+
+    ########################################
+    ## Modeling configuration
     ########################################
 
     # Node configuration
@@ -21,8 +31,8 @@ class TacGraspNetConfig(Config):
 
     # Edge configuration
     edge_feature_dims: Dict[str, int] = field(default_factory=lambda: {
-        "mesh_edges": 4, # Relative displacement in template (rest object) (3) + its norm (1)
-        # "mesh": 4, # Relative displacement in first and second frame (6) + their norm (2)
+        "mesh_edges": 4, # Relative displacement in template (at-rest object) (3) + its norm (1)
+        # "mesh_edges": 4, # Relative displacement in first and second frame (6) + their norm (2)
         "contact_edges": 5, # Relative displacement in current frame (3) + its norm (1) + applied force in contact (1)
     })
     edge_types: List[str] = field(default_factory=lambda: ["mesh_edges", "contact_edges"])

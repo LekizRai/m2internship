@@ -17,7 +17,7 @@ def test_tacgraspnet():
     D_V = 6
 
     # Dimension of mesh edge features. There are two options
-    # 4 = relative displacement in template (rest object) (3) + its norm (1)
+    # 4 = relative displacement in template (at-rest object) (3) + its norm (1)
     D_E_MESH = 4
     # # 8 = relative displacement in first and second frame (6) + their norm (2)
     # E_MESH_FEATURE = 8

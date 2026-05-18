@@ -3,7 +3,7 @@ import torch
 from torch import nn
 
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
-from models.mlp import MLP
+from models.commons.mlp import MLP
 
 
 class GraphNetBlock(nn.Module):
