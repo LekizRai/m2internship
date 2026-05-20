@@ -1,7 +1,7 @@
 import enum
 import torch
 
-from typing import Dict
+from typing import Dict, Any
 
 
 # Define Datapoint type representing one data point
@@ -12,6 +12,9 @@ Datapoint = Dict[str, torch.Tensor]
 # In the sense of TacGraspNet, it corresponds to the big graph
 # composed of all graphs (data points)
 Databatch = Dict[str, torch.Tensor]
+
+# Define DatapointInfo type representing information of one data point
+DatapointInfo = Dict[str, Any]
 
 # Define NodeType type representing type of nodes in graphs
 class NodeType(enum.IntEnum):

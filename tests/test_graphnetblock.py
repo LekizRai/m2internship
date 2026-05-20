@@ -9,7 +9,7 @@ def test_graphnetblock():
     # Define sample data
     V = 8 # Number of nodes
     E_MESH = 24 # Number of mesh edges
-    E_CONTACT = 2 # Number of contact edges (or world edges)
+    E_CONTACT = 2 # Number of contact edges (world edges)
     T = 2 # Number of tetrahedra
 
     D_V = 128 # Dimension of (encoded) node features

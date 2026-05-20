@@ -44,6 +44,5 @@ def transform(
 def extract_normal_from_trans_matrix(
         trans_matrix: torch.Tensor # Transformation matrix
 ) -> torch.Tensor:
-    x_normal = torch.tensor([1, 0, 0]).reshape(3, 1)
-    trans_matrix_no_translation = trans_matrix[:3, :3]
-    return trans_matrix_no_translation.float() @ x_normal.float()
+    x_normal = torch.tensor([1, 0, 0]) # A row vector
+    return torch.matmul(trans_matrix[:3, :3].float(), x_normal.float()) # Return a row vector corresponding to x-axis

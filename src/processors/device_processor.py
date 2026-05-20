@@ -1,10 +1,12 @@
-from typing import Dict, Any
 import torch
 
+from typing import Dict, Any
+
 from commons.config import Config
+from commons.processor import Processor
 
 
-class DeviceProcessor:
+class DeviceProcessor(Processor):
     def __init__(self, config: Config):
         self._config = config
 

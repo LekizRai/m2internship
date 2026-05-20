@@ -4,11 +4,15 @@ import trimesh
 import h5py
 import torch
 
-from typing import List
+from typing import List, Dict
 from h5py import File
 from torch.utils.data import Dataset
 
-from commons.datatype import Datapoint, NodeType
+from commons.datatype import (
+    Datapoint,
+    DatapointInfo,
+    NodeType
+)
 from utils.tetra import (
     parse_tet_file,
     extract_faces_from_tetras,
@@ -40,10 +44,25 @@ class DGSDataset(Dataset):
         super().__init__()
         self._config = config
 
-        # Initialize a list of all data point of the dataset
+        #######################################################################
+        ## Initialization
+        #######################################################################
+        # Initialize dictionary containing reusable tactile sensor data
+        # It is pre-computed in __init__()
+        self._ts_reusable_data: Dict[str, torch.Tensor] = {}
+
+        # Initialize dictionary containing reusable object data
+        # It is updated when calling _retrieve_datapoint
+        self._obj_reusable_data: Dict[str, Dict[str, torch.Tensor]] = {}
+
+        # Initialize a list of all data point information of the dataset
+        # Data point information includes object name, corresponding trajectories, frames and DGS output file name
+        self._datapoint_infos: List[DatapointInfo] = []
         self._datapoints: List[Datapoint] = []
 
-        # Retrieve dataset
+        #######################################################################
+        ## Collect dataset information (all considered data point information)
+        #######################################################################
         for file in os.listdir(config.dgs_output_path): # Iterate over all (.h5) files (objects) in DGS output directory
             # Continue if file exists and its extension is .h5, otherwise ignore
             if not os.path.isfile(os.path.join(config.dgs_output_path, file)) or not file.endswith(".h5"):
@@ -68,15 +87,20 @@ class DGSDataset(Dataset):
                         if config.focused_frames and not frame in config.focused_frames:
                             continue
 
-                        # Preprocess data and add processed datapoint to list
-                        datapoint = self.preprocess(h5file, obj, traj, frame)
-                        self._datapoints.append(datapoint)
+                        # Assign datapoint information
+                        datapoint_info: DatapointInfo = {
+                            "file": file, # DGS output file corresponding to considered object
+                            "obj": obj, # Current object name
+                            "traj": traj, # Current trajectory
+                            "frame": frame # Current frame
+                        }
 
-    def preprocess(self, file: File, obj: str, traj: int, frame: int) -> Datapoint:
-        print(obj, traj, frame)
-        ########################################
-        ## Tactile sensor (ts) data
-        ########################################
+                        # Add datapoint information to list
+                        self._datapoint_infos.append(datapoint_info)
+
+        #######################################################################
+        ## Pre-compute reusable (tactile sensor) data
+        #######################################################################
         # Initialize tactile sensor mesh path and check if file exists, otherwise raise FileNotFound error
         ts_mesh_path = os.path.join(self._config.dataset_path, "tactile_sensor.tet")
         if not os.path.isfile(ts_mesh_path):
@@ -93,22 +117,22 @@ class DGSDataset(Dataset):
         )
         left_ts_template_verts = do_translation(
             left_ts_template_verts,
-            torch.tensor([-0.0006, 0.0275, 0.099]).reshape(3, 1), # Convention
-        ).T # Transpose again to obtain original shape
+            torch.tensor([-0.0006, 0.0275, 0.099]).reshape(3, 1),  # Convention
+        ).T  # Transpose again to obtain original shape
 
         # Generate the right one
         right_ts_template_verts = do_scale(
             ts_raw_verts.T,  # Transpose for proper operation
             torch.tensor([-1, 0, 0]).reshape(3, 1),
-        ) # This step does flip to generate right set of vertice positions
+        )  # This step does flip to generate right set of vertice positions
         right_ts_template_verts = do_rotation(
             right_ts_template_verts,
             0, -math.pi / 2, 0,
         )
         right_ts_template_verts = do_translation(
             right_ts_template_verts,
-            torch.tensor([-0.0006, -0.0275, 0.099]).reshape(3, 1), # Convention
-        ).T # Transpose again to obtain original shape
+            torch.tensor([-0.0006, -0.0275, 0.099]).reshape(3, 1),  # Convention
+        ).T  # Transpose again to obtain original shape
 
         # Gather all template (at-rest) information (from two generated tactile sensors)
         # Note that tetrahedral vertice indices are universal (not only valid in template)
@@ -120,12 +144,12 @@ class DGSDataset(Dataset):
             ts_raw_tetras,
             # Add elementwise the number of vertices of the left one to separate two sets of tetrahedra (left and right)
             ts_raw_tetras + left_ts_template_verts.shape[-2]
-        ], dim=-2) # Tetrahedra
+        ], dim=-2)  # Tetrahedra
 
         # Determine tactile sensor node types
         n_ts_verts = ts_template_verts.shape[-2]
         # Initialize all nodes as interior nodes
-        ts_node_types = torch.full((n_ts_verts, 1), NodeType.INTERIOR).long() # Will be used as indices
+        ts_node_types = torch.full((n_ts_verts, 1), NodeType.INTERIOR).long()  # Will be used as indices
         ts_faces, ts_surface_faces = extract_faces_from_tetras(
             tetras=ts_tetras,
             return_surface_faces=True,
@@ -133,6 +157,24 @@ class DGSDataset(Dataset):
         ts_surface_vert_idx = ts_surface_faces.flatten().unique()  # Extract all surface vertice indices
         ts_node_types[ts_surface_vert_idx] = NodeType.SURFACE  # Assign surface node type to them
 
+        # Assign data to dictionary
+        self._ts_reusable_data["template_verts"] = ts_template_verts
+        self._ts_reusable_data["tetras"] = ts_tetras
+        self._ts_reusable_data["node_types"] = ts_node_types
+
+    def _retrieve_datapoint(self, datapoint_info: DatapointInfo) -> Datapoint:
+        ########################################
+        ## Get data point information
+        ########################################
+        file = datapoint_info["file"]
+        file = h5py.File(os.path.join(self._config.dgs_output_path, file), "r") # Open .h5 file
+        obj = datapoint_info["obj"]
+        traj = datapoint_info["traj"]
+        frame = datapoint_info["frame"]
+
+        ########################################
+        ## Tactile sensor (ts) data
+        ########################################
         # Extract vertice positions from first two frames in considering trajectory
         ts_1st_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 0, ...]).float()
         ts_2nd_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 1, ...]).float()
@@ -143,34 +185,44 @@ class DGSDataset(Dataset):
         ########################################
         ## (Rigid) object data (not tactile sensor)
         ########################################
-        # Initialize object mesh path and check if file exists, otherwise raise FileNotFound error
-        obj_mesh_path = os.path.join(self._config.dgn_dataset_path, obj, f"{obj}_processed.stl")
-        if not os.path.isfile(obj_mesh_path):
-            raise FileNotFoundError(obj_mesh_path)
+        # Compute object data and add them to the dictionary if they have not been collected
+        if obj not in self._obj_reusable_data:
+            # Initialize object mesh path and check if file exists, otherwise raise FileNotFound error
+            obj_mesh_path = os.path.join(self._config.dgn_dataset_path, obj, f"{obj}_processed.stl")
+            if not os.path.isfile(obj_mesh_path):
+                raise FileNotFoundError(obj_mesh_path)
 
-        # Load mesh and retrieve data
-        obj_mesh = trimesh.load_mesh(obj_mesh_path)
-        obj_template_verts = torch.tensor(obj_mesh.vertices).float() # Template (at-rest) vertice positions
-        obj_faces = torch.tensor(obj_mesh.faces).long() # Faces
+            # Load mesh and retrieve data
+            obj_mesh = trimesh.load_mesh(obj_mesh_path)
+            obj_template_verts = torch.tensor(obj_mesh.vertices).float() # Template (at-rest) vertice positions
+            obj_faces = torch.tensor(obj_mesh.faces).long() # Faces
 
-        # Set object node types
-        n_obj_verts = obj_template_verts.shape[-2]
-        obj_node_types = torch.full((n_obj_verts, 1), NodeType.OBJECT).long() # Will be used as indices
+            # Set object node types
+            n_obj_verts = obj_template_verts.shape[-2]
+            obj_node_types = torch.full((n_obj_verts, 1), NodeType.OBJECT).long() # Will be used as indices
+
+            # Assign data to dictionary
+            reusable_data: Dict[str, torch.Tensor] = {
+                "template_verts": obj_template_verts,
+                "faces": obj_faces,
+                "node_types": obj_node_types
+            }
+            self._obj_reusable_data[obj] = reusable_data
 
         # Transform data to align with DGS output dataset
         # Objects corresponding to first two frames (using transformation matrices from first two frames)
         obj_1st_frame_verts = transform(
-            obj_template_verts.T, # Transpose for proper operation
+            self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
             trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 0, ...])
         ).T # Transpose again to obtain original shape
         obj_2nd_frame_verts = transform(
-            obj_template_verts.T, # Transpose for proper operation
+            self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
             trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 1, ...])
         ).T # Transpose again to obtain original shape
 
         # Objects corresponding to the current frame (using transformation matrix from current frame)
         obj_verts = transform(
-            obj_template_verts.T, # Transpose for proper operation
+            self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
             trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...])
         ).T # Transpose again to obtain original shape
 
@@ -184,7 +236,7 @@ class DGSDataset(Dataset):
         ########################################
         # Extract tactile sensor vertice stress values
         vert_to_tetra_relation, n_tetras_per_vert = compute_vert_to_tetra_relation(
-            tetras=ts_tetras,
+            tetras=self._ts_reusable_data["tetras"],
             return_n_tetras_per_vert=True
         ) # Compute vertice to tetrahedron relation matrix
         ts_vert_stress_sums = torch.sparse.mm(
@@ -198,7 +250,10 @@ class DGSDataset(Dataset):
         ts_tetras_stresses = torch.tensor(file["_1_stacked_stresses"][traj, frame]).float().unsqueeze(1)
 
         # Initialize zeros to object vertice stress values
-        obj_vert_stresses = torch.zeros(n_obj_verts, 1).float()
+        obj_vert_stresses = torch.zeros(
+            self._obj_reusable_data[obj]["template_verts"].shape[-2],
+            1
+        ).float()
 
         ########################################
         ## Normal data (i.e. perpendicular thing)
@@ -211,61 +266,62 @@ class DGSDataset(Dataset):
         ########################################
         ## Assign data to data point
         ########################################
-        datapoint: Datapoint = dict()
+        datapoint: Datapoint = {
+            # Template (at-rest) data
+            "template.vertices.positions": torch.cat([
+                self._ts_reusable_data["template_verts"],
+                self._obj_reusable_data[obj]["template_verts"]
+            ], dim=-2),
 
-        # Template (at-rest) data
-        datapoint["template.vertices.positions"] = torch.cat([
-            ts_template_verts,
-            obj_template_verts
-        ], dim=-2)
+            # First frame
+            "1st_frame.vertices.positions": torch.cat([
+                ts_1st_frame_verts,
+                obj_1st_frame_verts
+            ], dim=-2),
 
-        # First frame
-        datapoint["1st_frame.vertices.positions"] = torch.cat([
-            ts_1st_frame_verts,
-            obj_1st_frame_verts
-        ], dim=-2)
+            # Second frame
+            "2nd_frame.vertices.positions": torch.cat([
+                ts_2nd_frame_verts,
+                obj_2nd_frame_verts
+            ], dim=-2),
 
-        # Second frame
-        datapoint["2nd_frame.vertices.positions"] = torch.cat([
-            ts_2nd_frame_verts,
-            obj_2nd_frame_verts
-        ], dim=-2)
+            # Forces
+            "forces": forces,
 
-        # Forces
-        datapoint["forces"] = forces
+            # Tactile sensor normals
+            "tactile_sensors.normals": ts_normals,
 
-        # Tactile sensor normals
-        datapoint["tactile_sensors.normals"] = ts_normals
+            # Vertices
+            "vertices.positions": torch.cat([
+                ts_verts,
+                obj_verts
+            ], dim=-2),
+            "vertices.stresses": torch.cat([
+                ts_vert_stresses,
+                obj_vert_stresses
+            ], dim=-2),
 
-        # Vertices
-        datapoint["vertices.positions"] = torch.cat([
-            ts_verts,
-            obj_verts
-        ], dim=-2)
-        datapoint["vertices.stresses"] = torch.cat([
-            ts_vert_stresses,
-            obj_vert_stresses
-        ], dim=-2)
+            # (Tactile sensor) tetrahedra
+            "tetrahedra": self._ts_reusable_data["tetras"],
+            "tetrahedra.stresses": ts_tetras_stresses,
 
-        # (Tactile sensor) tetrahedra
-        datapoint["tetrahedra"] = ts_tetras
-        datapoint["tetrahedra.stresses"] = ts_tetras_stresses
+            # (Object) faces
+            # Adding elementwise the number of vertices of tactile sensor to separate two sets
+            # of indices (object face indices and tactile sensor tetrahedral indices)
+            "faces": self._obj_reusable_data[obj]["faces"]
+                     + self._ts_reusable_data["template_verts"].shape[-2],
 
-        # (Object) faces
-        # Adding elementwise the number of vertices of tactile sensor to separate two sets
-        # of indices (object face indices and tactile sensor tetrahedral indices)
-        datapoint["faces"] = obj_faces + n_ts_verts
-
-        # Node types
-        datapoint["nodes.types"] = torch.cat([
-            ts_node_types,
-            obj_node_types
-        ], dim=-2)
+            # Node types
+            "nodes.types": torch.cat([
+                self._ts_reusable_data["node_types"],
+                self._obj_reusable_data[obj]["node_types"]
+            ], dim=-2)
+        }
 
         return datapoint
 
-    def __len__(self):
-        return len(self._datapoints)
+    def __len__(self) -> int:
+        return len(self._datapoint_infos)
 
-    def __getitem__(self, idx):
-        return self._datapoints[idx]
+    def __getitem__(self, idx: int) -> Datapoint:
+        return self._retrieve_datapoint(self._datapoint_infos[idx])
