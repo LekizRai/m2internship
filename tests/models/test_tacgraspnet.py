@@ -89,9 +89,8 @@ def test_tacgraspnet_with_dgs_dataset():
     assert batch is not None
 
     # Test TacGraspNet forward
-    model = TacGraspNet(model_config)
-    new_batch = model(batch)
-    assert new_batch is not None
+    batch = model(batch)
+    assert batch is not None
 
     # Test postprocessor __call__
     batch = postprocessor(batch)
