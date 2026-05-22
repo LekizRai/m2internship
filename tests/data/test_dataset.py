@@ -1,5 +1,5 @@
-from all_datasets.dgs_dataset.dgs_dataset import DGSDataset
-from all_datasets.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
+from data.dgs_dataset.dgs_dataset import DGSDataset
+from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
 # To run this test, use must replace the current path to the path

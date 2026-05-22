@@ -39,7 +39,7 @@ class DGSDatasetConfig(Config):
     ## Path configuration
     ########################################
     # Directory of the whole dataset
-    dataset_path: str = "../dgs_dataset"
+    dataset_path: str = ".."
     # Directory of DefGraspNet (DGN) dataset which contains some important information
     dgn_dataset_path: str = os.path.join(dataset_path, "dgn_dataset")
     # Directory of simulation outputs (.h5 files) by DefGraspSim
