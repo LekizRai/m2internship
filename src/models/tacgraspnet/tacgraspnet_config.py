@@ -5,6 +5,7 @@ import torch
 from commons.config import Config
 
 # TODO:
+#  "Sample transform" for undeformed tactile sensor vertices
 #  Use second frame to compute relative displacements and construct world edges (check)
 #  Use first and second frames for at-rest data
 #  Last decoder layer having normalization of not
@@ -17,9 +18,21 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Important flags
     ########################################
-    # TODO
-    # Indicate whether nodes and tetrahedra use two separate or only one (combining) decoder
+    # Indicate whether the model is training or not
+    # It is used mainly for normalizer. Normalization is conducted only during training process
+    is_training: bool = True
+
+    # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
+    use_template_data: bool = True
+
+    # Indicate whether features are normalized or not
+    normalize_features: bool = True
+
+    # Indicate whether we use two separate or only one (combining) decoder for node and tetrahedral features
     use_node_tetra_separate_decoders: bool = True
+
+    # Indicate whether we use separate MLPs for different edge types in message passing or not
+    use_separate_edge_mlps: bool = True
 
     # Indicate whether each message passing step has its own set of MLPs or not
     # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
@@ -41,7 +54,6 @@ class TacGraspNetConfig(Config):
     edge_types: List[str] = field(default_factory=lambda: ["mesh_edges", "contact_edges"])
 
     # Tetrahedron configuration
-    is_tetra_used: bool = True
     tetra_feature_dim: int = 1 # Stress (1)
 
     # Global node configuration
@@ -66,7 +78,7 @@ class TacGraspNetConfig(Config):
     ## Graph building configuration
     ########################################
 
-    radius: float = 0.5 # Radius of the ball (neighborhood) for construction of contact edges (world edges)
+    radius: float = 0.005 # Radius of the ball (neighborhood) for construction of contact edges (world edges)
 
     ########################################
     ## Device configuration
@@ -74,13 +86,20 @@ class TacGraspNetConfig(Config):
 
     # Set up available device
     if torch.cuda.is_available():
-        device = torch.device("cuda")
+        device = "cuda"
     else:
-        device = torch.device("cpu")
+        device = "cpu"
 
     ########################################
     ## Training configuration
     ########################################
+    # Batch size
+    batch_size: int = 1
+
+    # Number of epochs
+    n_epochs: int = 1
+
+    # Optimizer
 
     def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers

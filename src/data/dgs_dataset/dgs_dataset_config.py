@@ -12,7 +12,9 @@ in simulation of tactile sensor thick covering layers when robot
 arms holds rigid objects whose different shapes (e.g. sphere, lemon,
 polygons, ...). The simulation is conducted using 100 different
 grasping poses on each object (i.e. trajectories) and each trajectory
-is divided into 50 time slices performing temporal increasing of force.
+is divided into 50 frames performing increasing of force. From now on,
+in this implementation, when mentioning tactile sensor, that means
+only its deformable covering layer is considered.
 """
 
 @dataclass
@@ -39,7 +41,7 @@ class DGSDatasetConfig(Config):
     ## Path configuration
     ########################################
     # Directory of the whole dataset
-    dataset_path: str = ".."
+    dataset_path: str = "../dgs_dataset"
     # Directory of DefGraspNet (DGN) dataset which contains some important information
     dgn_dataset_path: str = os.path.join(dataset_path, "dgn_dataset")
     # Directory of simulation outputs (.h5 files) by DefGraspSim

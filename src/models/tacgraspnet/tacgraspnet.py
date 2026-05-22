@@ -4,7 +4,9 @@ from torch import nn
 
 from models.commons.mlp import MLP
 from models.commons.graphnetblock import GraphNetBlock
+from models.commons.normalizer import Normalizer
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
+from commons.datatype import Databatch
 
 
 class TacGraspNet(nn.Module):
@@ -66,7 +68,33 @@ class TacGraspNet(nn.Module):
             output_activation=nn.ReLU(),
         ).to(config.device)
 
-    def _encode(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+        # Initialize normalizers for feature normalization if flag is true
+        if config.normalize_features:
+            self._node_normalizer = Normalizer(
+                config=config,
+                feature_dim=config.node_feature_dim
+            ).to(config.device)
+            self._edge_normalizers= {}
+            for edge_type in config.edge_types:
+                self._edge_normalizers[edge_type] = Normalizer(
+                    config=config,
+                    feature_dim=config.edge_feature_dims[edge_type]
+                ).to(config.device)
+            self._node_output_normalizer = Normalizer(
+                config=config,
+                feature_dim=config.node_output_dim
+            )
+            if config.use_node_tetra_separate_decoders:
+                self._tetra_normalizer = Normalizer(
+                    config=config,
+                    feature_dim=config.tetra_feature_dim
+                )
+                self._tetra_output_normalizer = Normalizer(
+                    config=config,
+                    feature_dim=config.tetra_output_dim
+                )
+
+    def _encode(self, batch: Databatch) -> Databatch:
         new_batch = batch.copy()
 
         # Encode node features
@@ -81,7 +109,7 @@ class TacGraspNet(nn.Module):
 
         return new_batch
 
-    def _decode(self, batch: Dict[str, Any]) -> Dict[str, torch.Tensor]:
+    def _decode(self, batch: Databatch) -> Databatch:
         new_batch = batch.copy()
 
         # Decode node features
@@ -92,7 +120,23 @@ class TacGraspNet(nn.Module):
 
         return new_batch
 
-    def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
+    def forward(self, batch: Databatch) -> Databatch:
+        # Features normalization
+        batch["nodes.features"] = self._node_normalizer(
+            batch["nodes.features"],
+            is_training=self._config.is_training
+        )
+        for edge_type in self._config.edge_types:
+            batch[edge_type + ".features"] = self._edge_normalizers[edge_type](
+                batch[edge_type + ".features"],
+                is_training=self._config.is_training
+            )
+        if self._config.use_node_tetra_separate_decoders:
+            batch["tetrahedra.features"] = self._tetra_normalizer(
+                batch["tetrahedra.features"],
+                is_training=self._config.is_training
+            )
+
         # Encode
         batch = self._encode(batch)
 

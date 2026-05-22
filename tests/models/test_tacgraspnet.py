@@ -1,11 +1,16 @@
 from typing import Dict
 import torch
 
+from torch.utils.data import DataLoader
+
 from models.tacgraspnet.tacgraspnet import TacGraspNet
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
+from models.tacgraspnet.tacgraspnet_processor import make_tacgraspnet_processors
+from data.dgs_dataset.dgs_dataset import DGSDataset
+from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
-def test_tacgraspnet():
+def test_tacgraspnet_with_self_defined_graph():
     # Define sample data
     V = 8 # Number of nodes
     E_MESH = 24 # Number of mesh edges
@@ -52,7 +57,7 @@ def test_tacgraspnet():
         "tetrahedra.features": torch.rand(T, D_T),
     }
 
-    # Test forward
+    # Test TacGraspNet forward
     config = TacGraspNetConfig()
     model = TacGraspNet(config)
     batch = model.forward(batch)
@@ -60,6 +65,40 @@ def test_tacgraspnet():
     assert batch["nodes.outputs"].shape == (V, D_V_OUTPUT)
     assert batch["tetrahedra.outputs"].shape == (T, D_T_OUTPUT)
 
+def test_tacgraspnet_with_dgs_dataset():
+    # Initialize dataset and data loader
+    model_config = TacGraspNetConfig()
+    dataset_config = DGSDatasetConfig()
+    dataset = DGSDataset(dataset_config)
+    data_loader = DataLoader(
+        dataset,
+        batch_size=model_config.batch_size,
+        shuffle=True,
+        collate_fn=dataset.collate
+    )
+
+    # Initialize processors
+    preprocessor, postprocessor = make_tacgraspnet_processors(model_config)
+
+    # Initialize model
+    model = TacGraspNet(model_config)
+
+    # Test preprocessor __call__
+    batch = next(iter(data_loader))
+    batch = preprocessor(batch)
+    assert batch is not None
+
+    # Test TacGraspNet forward
+    model = TacGraspNet(model_config)
+    new_batch = model(batch)
+    assert new_batch is not None
+
+    # Test postprocessor __call__
+    batch = postprocessor(batch)
+    assert batch is not None
+
+
 if __name__ == "__main__":
-    test_tacgraspnet()
+    test_tacgraspnet_with_self_defined_graph()
+    test_tacgraspnet_with_dgs_dataset()
     print("Test passed.")

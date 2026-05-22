@@ -52,6 +52,7 @@ def test_dataset():
 
     # Test retrieving first data point
     data_point = dataset[0]
+    print(data_point["forces"].shape)
     assert data_point is not None
 
 

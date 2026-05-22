@@ -26,7 +26,7 @@ from utils.transform import (
     transform,
     extract_normal_from_trans_matrix
 )
-from data.defgraspsim.dgs_dataset_config import DGSDatasetConfig
+from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
 """
@@ -35,9 +35,9 @@ in simulation of tactile sensor thick covering layers when robot
 arms holds rigid objects whose different shapes (e.g. sphere, lemon,
 polygons, ...). The simulation is conducted using 100 different
 grasping poses on each object (i.e. trajectories) and each trajectory
-is divided into 50 time slices performing temporal increasing of force.
-From now on in this implementation, when mentioning tactile sensor,
-that means only its deformable covering layer is considered.
+is divided into 50 frames performing increasing of force. From now on,
+in this implementation, when mentioning tactile sensor, that means
+only its deformable covering layer is considered.
 """
 
 class DGSDataset(Dataset):
@@ -150,7 +150,7 @@ class DGSDataset(Dataset):
         # Determine tactile sensor node types
         n_ts_verts = ts_template_verts.shape[-2]
         # Initialize all nodes as interior nodes
-        ts_node_types = torch.full((n_ts_verts,), NodeType.INTERIOR).long()  # Will be used as indices
+        ts_node_types = torch.full((n_ts_verts,), NodeType.INTERIOR)
         ts_faces, ts_surface_faces = extract_faces_from_tetras(
             tetras=ts_tetras,
             return_surface_faces=True,
@@ -159,9 +159,9 @@ class DGSDataset(Dataset):
         ts_node_types[ts_surface_vert_idx] = NodeType.SURFACE  # Assign surface node type to them
 
         # Assign data to dictionary
-        self._ts_reusable_data["template_verts"] = ts_template_verts
-        self._ts_reusable_data["tetras"] = ts_tetras
-        self._ts_reusable_data["node_types"] = ts_node_types
+        self._ts_reusable_data["template_verts"] = ts_template_verts.float()
+        self._ts_reusable_data["tetras"] = ts_tetras.long()
+        self._ts_reusable_data["node_types"] = ts_node_types.long()
 
     def _retrieve_datapoint(self, datapoint_info: DatapointInfo) -> Datapoint:
         ########################################
@@ -177,11 +177,11 @@ class DGSDataset(Dataset):
         ## Tactile sensor (ts) data
         ########################################
         # Extract vertice positions from first two frames in considering trajectory
-        ts_1st_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 0, ...]).float()
-        ts_2nd_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 1, ...]).float()
+        ts_1st_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 0, ...])
+        ts_2nd_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 1, ...])
 
         # Extract vertice positions from current frame in considering trajectory
-        ts_verts = torch.tensor(file["_1_stacked_positions"][traj, frame, ...]).float()
+        ts_verts = torch.tensor(file["_1_stacked_positions"][traj, frame, ...])
 
         ########################################
         ## (Rigid) object data (not tactile sensor)
@@ -195,18 +195,18 @@ class DGSDataset(Dataset):
 
             # Load mesh and retrieve data
             obj_mesh = trimesh.load_mesh(obj_mesh_path)
-            obj_template_verts = torch.tensor(obj_mesh.vertices).float() # Template (at-rest) vertice positions
-            obj_faces = torch.tensor(obj_mesh.faces).long() # Faces
+            obj_template_verts = torch.tensor(obj_mesh.vertices) # Template (at-rest) vertice positions
+            obj_faces = torch.tensor(obj_mesh.faces) # Faces
 
             # Set object node types
             n_obj_verts = obj_template_verts.shape[-2]
-            obj_node_types = torch.full((n_obj_verts,), NodeType.OBJECT).long() # Will be used as indices
+            obj_node_types = torch.full((n_obj_verts,), NodeType.OBJECT) # Will be used as indices
 
             # Assign data to dictionary
             reusable_data: Dict[str, torch.Tensor] = {
-                "template_verts": obj_template_verts,
-                "faces": obj_faces,
-                "node_types": obj_node_types
+                "template_verts": obj_template_verts.float(),
+                "faces": obj_faces.long(),
+                "node_types": obj_node_types.long()
             }
             self._obj_reusable_data[obj] = reusable_data
 
@@ -230,7 +230,8 @@ class DGSDataset(Dataset):
         ########################################
         ## Force data
         ########################################
-        forces = torch.tensor(file["_1_stacked_forces"][traj, frame]).float()
+        # Force here is a scalar, we need to turn it into the 1x1 matrix
+        force = torch.tensor(file["_1_stacked_forces"][traj, frame])[None]
 
         ########################################
         ## Stress data
@@ -242,16 +243,16 @@ class DGSDataset(Dataset):
         ) # Compute vertice to tetrahedron relation matrix
         ts_vert_stress_sums = torch.sparse.mm(
             vert_to_tetra_relation,
-            torch.tensor(file["_1_stacked_stresses"][traj, frame]).float().unsqueeze(-1)
+            torch.tensor(file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
         ) # Compute at each vertice the sum of stresses from surrounding tetrahedra
         # Compute the average stress value at each vertice
-        ts_vert_stresses = torch.div(ts_vert_stress_sums, n_tetras_per_vert.unsqueeze(-1)).squeeze(-1)
+        ts_vert_stresses = torch.div(ts_vert_stress_sums, n_tetras_per_vert.unsqueeze(-1))
 
         # Extract tactile sensor tetrahedral stress values
-        ts_tetras_stresses = torch.tensor(file["_1_stacked_stresses"][traj, frame]).float()
+        ts_tetras_stresses = torch.tensor(file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
 
         # Initialize zeros to object vertice stress values
-        obj_vert_stresses = torch.zeros(self._obj_reusable_data[obj]["template_verts"].shape[-2]).float()
+        obj_vert_stresses = torch.zeros(self._obj_reusable_data[obj]["template_verts"].shape[-2], 1)
 
         ########################################
         ## Normal data (i.e. perpendicular thing)
@@ -265,59 +266,63 @@ class DGSDataset(Dataset):
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
-            # Template (at-rest) data
+            # Template (at-rest) data = (Number of all vertices, 3)
             "template.vertices.positions": torch.cat([
                 self._ts_reusable_data["template_verts"],
                 self._obj_reusable_data[obj]["template_verts"]
             ], dim=-2),
 
-            # First frame
+            # First frame = (Number of all vertices, 3)
             "1st_frame.vertices.positions": torch.cat([
                 ts_1st_frame_verts,
                 obj_1st_frame_verts
-            ], dim=-2),
+            ], dim=-2).float(),
 
-            # Second frame
+            # Second frame = (Number of all vertices, 3)
             "2nd_frame.vertices.positions": torch.cat([
                 ts_2nd_frame_verts,
                 obj_2nd_frame_verts
-            ], dim=-2),
+            ], dim=-2).float(),
 
-            # Forces
-            "forces": forces,
+            # Force = (1)
+            "forces": force.float(), # Key in plural form for data batch later
 
-            # Tactile sensor normals
-            "tactile_sensors.normals": ts_normals,
+            # Tactile sensor normals = (2, 3)
+            "tactile_sensors.normals": ts_normals.float(),
 
-            # Vertices
+            # Current frame vertices
+            # Current frame vertice positions = (Number of all vertices, 3)
             "vertices.positions": torch.cat([
                 ts_verts,
                 obj_verts
-            ], dim=-2),
+            ], dim=-2).float(),
+            # Current frame vertice stresses = (Number of all vertices, 1)
             "vertices.stresses": torch.cat([
                 ts_vert_stresses,
                 obj_vert_stresses
-            ]),
+            ], dim=-2).float(),
 
             # (Tactile sensor) tetrahedra
+            # Tetrahedron vertice indices = (Number of all (tactile sensor) tetrahedra, 4)
             "tetrahedra": self._ts_reusable_data["tetras"],
-            "tetrahedra.stresses": ts_tetras_stresses,
+            # Tetrahedron stresses = (Number of all (tactile sensor) tetrahedra, 1)
+            "tetrahedra.stresses": ts_tetras_stresses.float(),
 
-            # (Object) faces
+            # (Object) faces = (Number of all (object) face, 3)
             # Adding elementwise the number of vertices of tactile sensor to separate two sets
             # of indices (object face indices and tactile sensor tetrahedral indices)
             "faces": self._obj_reusable_data[obj]["faces"]
                      + self._ts_reusable_data["template_verts"].shape[-2],
 
-            # Node types
+            # Node types = (Number of all vertices)
             "nodes.types": torch.cat([
                 self._ts_reusable_data["node_types"],
                 self._obj_reusable_data[obj]["node_types"]
             ]),
 
-            # Datapoint index (default value is zero, used for distinguish among datapoints
-            # after combining to form data batch
-            "datapoints.indices": torch.zeros(ts_verts.shape[-2] + obj_verts.shape[-2])
+            # Datapoint index (default value is zero) = (Number of all vertices)
+            # They are used for distinguish among datapoints after combining to form data batch
+            "datapoints.indices": torch.zeros(ts_verts.shape[-2] + obj_verts.shape[-2]).long()
         }
 
         return datapoint
@@ -369,7 +374,7 @@ class DGSDataset(Dataset):
             "forces": torch.tensor(forces_lst),
             "tactile_sensors.normals": torch.stack(ts_normal_lst, dim=-3),
             "vertices.positions": torch.cat(vert_pos_lst, dim=-2),
-            "vertices.stresses": torch.cat(vert_stress_lst, dim=-2),
+            "vertices.stresses": torch.cat(vert_stress_lst),
             "tetrahedra": torch.cat(tetra_lst, dim=-2),
             "tetrahedra.stresses": torch.cat(tetra_stress_lst),
             "faces": torch.cat(face_lst, dim=-2),

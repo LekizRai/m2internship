@@ -8,8 +8,8 @@ def construct_contact_edges(
         node_types: torch.Tensor,
         radius: float
 ) -> torch.Tensor:
-    ts_surface_vert_mapping = torch.where(node_types == NodeType.SURFACE) # Get tactile sensor surface vertice indices
-    obj_verts_mapping = torch.where(node_types == NodeType.OBJECT) # Get object vertice indices
+    ts_surface_vert_mapping = torch.where(node_types == NodeType.SURFACE)[0] # Get tactile sensor surface vertice indices
+    obj_verts_mapping = torch.where(node_types == NodeType.OBJECT)[0] # Get object vertice indices
 
     ts_surface_verts = verts[ts_surface_vert_mapping] # Extract tactile sensor surface vertices
     obj_verts = verts[obj_verts_mapping] # Extract object vertices

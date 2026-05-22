@@ -21,5 +21,5 @@ class NodeType(enum.IntEnum):
     INTERIOR = 0  # Interior nodes of tactile sensors
     OBJECT = 1  # Nodes of the undeformable object
     SURFACE = 2  # Surface nodes of tactile sensors
-    # SIZE = 3  # in one-hot encoding
+    NUM = 3  # Number of node types
 
