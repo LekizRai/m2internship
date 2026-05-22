@@ -94,7 +94,7 @@ class TacGraspNetConfig(Config):
     ## Training configuration
     ########################################
     # Batch size
-    batch_size: int = 1
+    batch_size: int = 2
 
     # Number of epochs
     n_epochs: int = 1

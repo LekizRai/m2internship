@@ -53,7 +53,10 @@ class Normalizer(nn.Module):
         mean = self._acc_sum / count # Compute mean
         # Compute standard deviation, always ensure that the value is greater than or equal to a positive epsilon value
         std_dev = torch.maximum(
-            torch.sqrt(torch.tensor(self._acc_sum_squared / count - mean ** 2)),
+            torch.sqrt(torch.maximum(
+                torch.tensor(self._acc_sum_squared / count - mean ** 2),
+                torch.tensor(0.0)
+            )), # Ensure that term inside squared root is non-negative
             torch.tensor(self._epsilon)
         )
         return mean, std_dev
