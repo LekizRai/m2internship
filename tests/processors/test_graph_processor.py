@@ -79,7 +79,6 @@ def test_graph_processor_with_self_defined_data():
     batch = processor(batch)
     assert batch is not None
 
-
 def test_graph_processor_with_dgs_dataset():
     # Initialize dataset and data loader
     model_config = TacGraspNetConfig()
