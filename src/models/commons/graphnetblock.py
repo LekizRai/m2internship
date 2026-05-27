@@ -21,32 +21,47 @@ class GraphNetBlock(nn.Module):
             output_dim=config.latent_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
-            is_output_normalized=True,
+            is_output_normalized=config.use_final_layer_norm,
         ).to(config.device)
 
         # Initialize MLPs for all types of edge (mesh, contact, ...) feature updates
         self._edge_mlps = {}
-        for edge_type in config.edge_types:
-            self._edge_mlps[edge_type] = MLP(
+        if config.use_separate_edge_mlps: # Separate MLPs are created for different types of edge feature updates
+            for edge_type in config.edge_types:
+                self._edge_mlps[edge_type] = MLP(
+                    # Input dimension = encoded (sender (node) + receiver (node) + current edge) feature dimensions
+                    # Note: all features are encoded to the same latent space before
+                    input_dim=config.latent_dim * 3,
+                    output_dim=config.latent_dim,
+                    hidden_dims=config.hidden_dims,
+                    hidden_activation=nn.ReLU(),
+                    is_output_normalized=config.use_final_layer_norm,
+                ).to(config.device)
+        else: # Only one MLP is created for all types of edge feature updates
+            edge_mlp = MLP(
                 # Input dimension = encoded (sender (node) + receiver (node) + current edge) feature dimensions
                 # Note: all features are encoded to the same latent space before
                 input_dim=config.latent_dim * 3,
                 output_dim=config.latent_dim,
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
-                is_output_normalized=True,
+                is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
+            for edge_type in config.edge_types:
+                self._edge_mlps[edge_type] = edge_mlp
 
         # Initialize MLP for tetrahedral feature update
-        self._tetra_mlp = MLP(
-            # Input dimension = encoded (4 vertex nodes + tetrahedral) feature dimensions
-            # Note: all features are encoded to the same latent space before
-            input_dim=config.latent_dim * 5,
-            output_dim=config.latent_dim,
-            hidden_dims=config.hidden_dims,
-            hidden_activation=nn.ReLU(),
-            is_output_normalized=True,
-        ).to(config.device)
+        # Initialize only when flag is true
+        if config.use_node_tetra_separate_decoders:
+            self._tetra_mlp = MLP(
+                # Input dimension = encoded (4 vertex nodes + tetrahedral) feature dimensions
+                # Note: all features are encoded to the same latent space before
+                input_dim=config.latent_dim * 5,
+                output_dim=config.latent_dim,
+                hidden_dims=config.hidden_dims,
+                hidden_activation=nn.ReLU(),
+                is_output_normalized=config.use_final_layer_norm,
+            ).to(config.device)
 
     def _update_node_features(self, batch: Dict[str, Any]) -> torch.Tensor:
         V = batch["nodes.features"].shape[-2]  # Number of nodes
@@ -125,12 +140,15 @@ class GraphNetBlock(nn.Module):
         new_batch["nodes.features"] = self._update_node_features(batch)
 
         # Update tetrahedral features
-        new_batch["tetrahedra.features"] = self._update_tetra_features(batch)
+        # Update only when flag is true
+        if self._config.use_node_tetra_separate_decoders:
+            new_batch["tetrahedra.features"] = self._update_tetra_features(batch)
 
         # Add residual connections
         new_batch["nodes.features"] += batch["nodes.features"]
         for edge_type in self._config.edge_types:
             new_batch[edge_type + ".features"] += batch[edge_type + ".features"]
-        new_batch["tetrahedra.features"] += batch["tetrahedra.features"]
+        if self._config.use_node_tetra_separate_decoders: # Add residual connections for tetrahedra if flag is true
+            new_batch["tetrahedra.features"] += batch["tetrahedra.features"]
 
         return new_batch
