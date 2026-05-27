@@ -35,8 +35,7 @@ class GraphBuildingProcessor(Processor):
 
         return batch
 
-    @staticmethod
-    def _build_mesh_edges(batch: Databatch) -> tuple[torch.Tensor, torch.Tensor]:
+    def _build_mesh_edges(self, batch: Databatch) -> tuple[torch.Tensor, torch.Tensor]:
         ########################################
         ## Tactile sensor mesh edges
         ########################################
@@ -77,13 +76,27 @@ class GraphBuildingProcessor(Processor):
         receivers = mesh_edges[..., 1]  # Get mesh edge receiver indices
 
         # Compute mesh edge features
-        # Compute template relative displacement for each mesh edge
-        relative_template_disps = (batch["template.vertices.positions"][receivers]
-                                   - batch["template.vertices.positions"][senders])
-        mesh_edge_features = torch.cat([
-            relative_template_disps, # Relative displacements
-            torch.norm(relative_template_disps, dim=-1, keepdim=True) # Relative displacement norms
-        ], dim=-1) # Build mesh edge features
+        if self._config.use_template_data: # Use template data if flag is true
+            # Compute template relative displacement for each mesh edge
+            relative_template_disps = (batch["template.vertices.positions"][receivers]
+                                       - batch["template.vertices.positions"][senders])
+            mesh_edge_features = torch.cat([
+                relative_template_disps, # Relative displacements
+                torch.norm(relative_template_disps, dim=-1, keepdim=True) # Relative displacement norms
+            ], dim=-1) # Build mesh edge features
+        else: # Otherwise, use first and second frame data
+            # Compute first frame relative displacement for each mesh edge
+            relative_1st_frame_disps = (batch["1st_frame.vertices.positions"][receivers]
+                                       - batch["1st_frame.vertices.positions"][senders])
+            # Compute second frame relative displacement for each mesh edge
+            relative_2nd_frame_disps = (batch["2nd_frame.vertices.positions"][receivers]
+                                        - batch["2nd_frame.vertices.positions"][senders])
+            mesh_edge_features = torch.cat([
+                relative_1st_frame_disps,  # First frame relative displacements
+                torch.norm(relative_1st_frame_disps, dim=-1, keepdim=True),  # First frame relative displacement norms
+                relative_2nd_frame_disps,  # First frame relative displacements
+                torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True)  # First frame relative displacement norms
+            ], dim=-1)  # Build mesh edge features
 
         return mesh_edges, mesh_edge_features
 
