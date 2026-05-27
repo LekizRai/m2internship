@@ -35,8 +35,11 @@ in simulation of tactile sensor thick covering layers when robot
 arms holds rigid objects whose different shapes (e.g. sphere, lemon,
 polygons, ...). The simulation is conducted using 100 different
 grasping poses on each object (i.e. trajectories) and each trajectory
-is divided into 50 frames performing increasing of force. From now on,
-in this implementation, when mentioning tactile sensor, that means
+is divided into 50 frames performing increasing of force. In each frame,
+i.e. each force value is applied, the recorded data is the stable state
+when the whole system (including tactile sensors and object) stops after
+conducting griping action with specific force. From now on, in this
+implementation, when mentioning tactile sensor, that means
 only its deformable covering layer is considered.
 """
 
@@ -124,7 +127,7 @@ class DGSDataset(Dataset):
         # Generate the right one
         right_ts_template_verts = do_scale(
             ts_raw_verts.T,  # Transpose for proper operation
-            torch.tensor([-1, 0, 0]).reshape(3, 1),
+            torch.tensor([-1, 1, 1]).reshape(3, 1),
         )  # This step does flip to generate right set of vertice positions
         right_ts_template_verts = do_rotation(
             right_ts_template_verts,
@@ -141,6 +144,19 @@ class DGSDataset(Dataset):
             left_ts_template_verts,
             right_ts_template_verts
         ], dim=-2)  # All template (at-rest) vertice positions (both left and right)
+        ##############################################################################
+        # TODO
+        ts_template_verts = transform(
+            ts_template_verts.T,
+            torch.tensor(
+                [[1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, -1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]], dtype=torch.float64
+            )
+        )
+        ts_template_verts = do_translation(
+            ts_template_verts,
+            torch.tensor([0.0, 1.0, 0.0]).reshape(3, 1),
+        ).T
+        ##############################################################################
         ts_tetras = torch.cat([
             ts_raw_tetras,
             # Add elementwise the number of vertices of the left one to separate two sets of tetrahedra (left and right)
@@ -218,7 +234,7 @@ class DGSDataset(Dataset):
         ).T # Transpose again to obtain original shape
         obj_2nd_frame_verts = transform(
             self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
-            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 1, ...])
+            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...]) # TODO
         ).T # Transpose again to obtain original shape
 
         # Objects corresponding to the current frame (using transformation matrix from current frame)
@@ -255,7 +271,7 @@ class DGSDataset(Dataset):
         obj_vert_stresses = torch.zeros(self._obj_reusable_data[obj]["template_verts"].shape[-2], 1)
 
         ########################################
-        ## Normal data (i.e. perpendicular thing)
+        ## Normal data (i.e. perpendicular things)
         ########################################
         obj_normal = extract_normal_from_trans_matrix(
             trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...])
@@ -269,7 +285,14 @@ class DGSDataset(Dataset):
             # Template (at-rest) data = (Number of all vertices, 3)
             "template.vertices.positions": torch.cat([
                 self._ts_reusable_data["template_verts"],
-                self._obj_reusable_data[obj]["template_verts"]
+                ##############################################################################
+                # TODO
+                transform(
+                    self._obj_reusable_data[obj]["template_verts"].T,  # Transpose for proper operation
+                    trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 0, ...])
+                ).T  # Transpose again to obtain original shape
+                ##############################################################################
+                # self._obj_reusable_data[obj]["template_verts"]
             ], dim=-2),
 
             # First frame = (Number of all vertices, 3)

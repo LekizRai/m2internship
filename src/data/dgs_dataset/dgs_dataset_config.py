@@ -12,8 +12,11 @@ in simulation of tactile sensor thick covering layers when robot
 arms holds rigid objects whose different shapes (e.g. sphere, lemon,
 polygons, ...). The simulation is conducted using 100 different
 grasping poses on each object (i.e. trajectories) and each trajectory
-is divided into 50 frames performing increasing of force. From now on,
-in this implementation, when mentioning tactile sensor, that means
+is divided into 50 frames performing increasing of force. In each frame,
+i.e. each force value is applied, the recorded data is the stable state
+when the whole system (including tactile sensors and object) stops after
+conducting griping action with specific force. From now on, in this
+implementation, when mentioning tactile sensor, that means
 only its deformable covering layer is considered.
 """
 
