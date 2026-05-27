@@ -1,16 +1,16 @@
-from typing import Dict, List
-from dataclasses import dataclass, field
 import torch
 
+from typing import Dict, List
+from dataclasses import dataclass, field
+
 from commons.config import Config
+from commons.datatype import NodeType
 
 # TODO:
+#  Some change: Normal and template data calculations, second frame object is computed
+#  using transformation matrix from current frame
 #  "Sample transform" for undeformed tactile sensor vertices
-#  Use second frame to compute relative displacements and construct world edges (check)
 #  Use first and second frames for at-rest data
-#  Last decoder layer having normalization of not
-#  Normalization or not
-#  Separate decoders for node and tetrahedron or not
 #  Examine each data point (whether it is valid or not)
 
 @dataclass
@@ -23,7 +23,10 @@ class TacGraspNetConfig(Config):
     is_training: bool = True
 
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
-    use_template_data: bool = True
+    use_template_data: bool = False
+
+    # Indicate whether layer normalization is used for all MLP final layers or not
+    use_final_layer_norm: bool = True
 
     # Indicate whether features are normalized or not
     normalize_features: bool = True
@@ -38,19 +41,27 @@ class TacGraspNetConfig(Config):
     # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
     use_message_passing_separate_mlps: bool = True
 
+    # Indicate whether loss is computed on normalized data or not
+    compute_loss_with_normalization: bool = False
+
     ########################################
     ## Modeling configuration
     ########################################
 
     # Node configuration
-    node_feature_dim: int = 6 # Node position (3) + number of node types (3)
+    node_feature_dim: int = 3 + NodeType.NUM # Node velocity (3) + number of node types (3) (INTERIOR, SURFACE and OBJECT)
 
     # Edge configuration
-    edge_feature_dims: Dict[str, int] = field(default_factory=lambda: {
-        "mesh_edges": 4, # Relative displacement in template (at-rest object) (3) + its norm (1)
-        # "mesh_edges": 8, # Relative displacement in first and second frame (6) + their norm (2)
-        "contact_edges": 5, # Relative displacement in second frame (3) + its norm (1) + applied force in contact (1)
-    })
+    if use_template_data:
+        edge_feature_dims: Dict[str, int] = field(default_factory=lambda: {
+            "mesh_edges": 4, # Relative displacement in template (at-rest object) (3) + its norm (1)
+            "contact_edges": 5, # Relative displacement in second frame (3) + its norm (1) + applied force in contact (1)
+        })
+    else:
+        edge_feature_dims: Dict[str, int] = field(default_factory=lambda: {
+            "mesh_edges": 8, # Relative displacement in first and second frame (6) + their norm (2)
+            "contact_edges": 5, # Relative displacement in second frame (3) + its norm (1) + applied force in contact (1)
+        })
     edge_types: List[str] = field(default_factory=lambda: ["mesh_edges", "contact_edges"])
 
     # Tetrahedron configuration
@@ -60,9 +71,11 @@ class TacGraspNetConfig(Config):
     global_node_feature_dim: int = 0 # TODO
 
     # Output configuration
-    node_output_dim: int = 3 # Deformation (displacement) (3)
-    tetra_output_dim: int = 1 # Stress (1)
-    # self.output_dim = 4 # Deformation (displacement) (3) + stress (1)
+    if use_node_tetra_separate_decoders: # Displacement predictions on nodes, stress predictions on tetrahedra
+        node_output_dim: int = 3 # Deformation (displacement) (3)
+        tetra_output_dim: int = 1 # Stress (1)
+    else: # Prediction at each node including displacement and stress
+        node_output_dim = 4 # Deformation (displacement) (3) + stress (1)
 
     # MLPs configuration
     # The same hidden configuration for all updating MLPs in GraphNetBlock
@@ -94,7 +107,7 @@ class TacGraspNetConfig(Config):
     ## Training configuration
     ########################################
     # Batch size
-    batch_size: int = 2
+    batch_size: int = 1
 
     # Number of epochs
     n_epochs: int = 1
