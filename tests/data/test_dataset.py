@@ -25,8 +25,11 @@ def test_dataset():
     config = DGSDatasetConfig()
 
     #################################################
-    # Replace this path with your path of DGS dataset
-    config.dataset_path = "../dgs_dataset"
+    # Replace below in dataset configuration with your path of DGS dataset
+    # # Get project root folder
+    # proj_root_folder: str = get_project_root_folder()
+    # # Directory of the whole dataset
+    # dataset_path: str = os.path.normpath(os.path.join(proj_root_folder, "../dgs_dataset"))
     #################################################
 
     # Test dataset with "sphere01" object
@@ -52,7 +55,6 @@ def test_dataset():
 
     # Test retrieving first data point
     data_point = dataset[0]
-    print(data_point["forces"].shape)
     assert data_point is not None
 
 

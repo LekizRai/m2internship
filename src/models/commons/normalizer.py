@@ -24,7 +24,7 @@ class Normalizer(nn.Module):
         self.register_buffer("_n_accumulations", torch.zeros(1).to(config.device)) # Number of accumulations carried out
 
     def forward(self, feature_batch: torch.Tensor, is_training: bool = False) -> torch.Tensor:
-        # Do statistics accumulation only when the model is training and number of accumulations does not exceed maximum number
+        # Do statistics accumulation only when the model is running and number of accumulations does not exceed maximum number
         if is_training and self._n_accumulations < self._max_accumulations:
             self._accumulate(feature_batch)
 
@@ -52,9 +52,12 @@ class Normalizer(nn.Module):
         count = self._acc_count if self._acc_count > 1.0 else 1.0 # Prevent divided by zero error
         mean = self._acc_sum / count # Compute mean
         # Compute standard deviation, always ensure that the value is greater than or equal to a positive epsilon value
+        var = self._acc_sum_squared / count - mean ** 2 # Compute variance
+        if isinstance(var, float): # This code block is used to prevent (annoying) type warning
+            var = torch.tensor(var)
         std_dev = torch.maximum(
             torch.sqrt(torch.maximum(
-                torch.tensor(self._acc_sum_squared / count - mean ** 2),
+                var,
                 torch.tensor(0.0)
             )), # Ensure that term inside squared root is non-negative
             torch.tensor(self._epsilon)

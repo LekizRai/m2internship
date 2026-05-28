@@ -7,10 +7,7 @@ from commons.config import Config
 from commons.datatype import NodeType
 
 # TODO:
-#  Some change: Normal and template data calculations, second frame object is computed
-#  using transformation matrix from current frame
-#  "Sample transform" for undeformed tactile sensor vertices
-#  Use first and second frames for at-rest data
+#  Predict normalized outputs
 #  Examine each data point (whether it is valid or not)
 
 @dataclass
@@ -18,9 +15,12 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Important flags
     ########################################
-    # Indicate whether the model is training or not
-    # It is used mainly for normalizer. Normalization is conducted only during training process
+    # Indicate whether the model is running or not
+    # It is used mainly for normalizer. Normalization is conducted only during running process
     is_training: bool = True
+
+    # Indicate whether the normalized outputs are predicted or not
+    predict_normalized: bool = True
 
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
     use_template_data: bool = False
@@ -106,6 +106,9 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Training configuration
     ########################################
+    # Training
+    training_ratio: float = 0.8
+
     # Batch size
     batch_size: int = 1
 
@@ -113,6 +116,9 @@ class TacGraspNetConfig(Config):
     n_epochs: int = 1
 
     # Optimizer
+    optimizer_params: Dict = field(default_factory=lambda: {
+        "lr": 1e-4,
+    })
 
     def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers

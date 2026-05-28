@@ -1,7 +1,8 @@
 import torch
 
 from abc import ABC
-from dataclasses import dataclass
+from typing import Dict
+from dataclasses import dataclass, field
 
 
 @dataclass

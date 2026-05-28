@@ -11,6 +11,9 @@ from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
 def test_tacgraspnet_with_self_defined_graph():
+    # Initialize configuration
+    config = TacGraspNetConfig()
+
     # Define sample data
     V = 8 # Number of nodes
     E_MESH = 24 # Number of mesh edges
@@ -21,11 +24,13 @@ def test_tacgraspnet_with_self_defined_graph():
     # 6 = node velocity (3) + number of node types (3)
     D_V = 6
 
-    # Dimension of mesh edge features. There are two options
-    # 4 = relative displacement in template (at-rest object) (3) + its norm (1)
-    D_E_MESH = 4
-    # # 8 = relative displacement in first and second frame (6) + their norm (2)
-    # E_MESH_FEATURE = 8
+    # Dimension of mesh edge features. There are two options which can be set as flag in TacGraspNet configuration
+    if config.use_template_data:
+        # 4 = relative displacement in template (at-rest object) (3) + its norm (1)
+        D_E_MESH = 4
+    else:
+        # 8 = relative displacement in first and second frame (6) + their norm (2)
+        D_E_MESH = 8
 
     # Dimension of contact edge (world edge) features
     # 5 = relative displacement in current frame (3) + its norm (1) + applied force in contact (1)
@@ -35,9 +40,13 @@ def test_tacgraspnet_with_self_defined_graph():
     # 1 = stress (1)
     D_T = 1
 
-    # Dimension of outputs
-    D_V_OUTPUT = 3 # Displacement (3)
-    D_T_OUTPUT = 1 # Stress (1)
+    # Dimension of outputs. There are two options which can be set as flag in TacGraspNet configuration
+    if config.use_node_tetra_separate_decoders:  # If we use separating node and tetrahedral decoders
+        D_V_OUTPUT = 3  # Displacement (3)
+        D_T_OUTPUT = 1  # Stress (1)
+    else:  # Otherwise
+        D_V_OUTPUT = 4
+        D_T_OUTPUT = 1 # Dump value
 
     batch = {
         "nodes.features": torch.rand(V, D_V),
@@ -58,7 +67,6 @@ def test_tacgraspnet_with_self_defined_graph():
     }
 
     # Test TacGraspNet forward
-    config = TacGraspNetConfig()
     model = TacGraspNet(config)
     batch = model.forward(batch)
     assert isinstance(batch, Dict)

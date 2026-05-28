@@ -150,7 +150,7 @@ class TacGraspNet(nn.Module):
                 )
             # Get starting positions to compute target displacements
             starting_pos = batch["template.vertices.positions"] if self._config.use_template_data \
-                else batch["2nd_frame.vertices.positions"]
+                           else batch["2nd_frame.vertices.positions"]
             if self._config.use_node_tetra_separate_decoders:  # Normalize corresponding outputs and tetrahedral features if flag is true
                 batch["tetrahedra.features"] = self._tetra_normalizer(
                     batch["tetrahedra.features"],
@@ -159,7 +159,8 @@ class TacGraspNet(nn.Module):
 
                 # Normalize target node outputs (target displacements)
                 batch["targets.nodes.outputs"] = batch["vertices.positions"] - starting_pos # Target displacements
-                batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
+                # Store only normalized tactile sensor node outputs
+                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer(
                     # Only normalize tactile sensor node outputs
                     batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
                 )
@@ -174,7 +175,8 @@ class TacGraspNet(nn.Module):
                     batch["vertices.positions"] - starting_pos,
                     batch["vertices.stresses"]
                 ], dim=-1)
-                batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer([
+                # Store only normalized tactile sensor node outputs
+                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer([
                     # Only normalize tactile sensor node outputs
                     batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
                 ])

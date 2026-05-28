@@ -67,6 +67,9 @@ def compute_vert_to_tetra_relation(
         tetras: torch.Tensor, # Tensor of tetrahedral vertice indices
         return_n_tetras_per_vert: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor]:
+    # This line is to turn on error message when sparse tensor operations crash
+    torch.sparse.check_sparse_tensor_invariants.enable()
+
     i_indices = [] # List of first dimension indices
     j_indices = [] # List of second dimension indices
     for tetra, tetra_verts in enumerate(tetras):
