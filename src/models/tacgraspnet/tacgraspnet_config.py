@@ -113,11 +113,11 @@ class TacGraspNetConfig(Config):
     batch_size: int = 1
 
     # Number of epochs
-    n_epochs: int = 10
+    n_epochs: int = 40
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {
-        "lr": 1e-4,
+        "lr": 1e-3,
     })
 
     def __post_init__(self):
