@@ -1,3 +1,5 @@
+import torch
+
 from tqdm import tqdm
 from torch.optim import AdamW
 from torch.utils.data import random_split, DataLoader
@@ -47,17 +49,40 @@ def sample_train():
 
     # Initialize loss and score functions
     loss_fn = MSE(model_config)
+    score_classes = [DisplacementMAE, StressMAE, DisplacementR2PerSample, StressR2PerSample]
+    score_fns = {}
+    for score_class in score_classes:
+        score_fns[score_class] = score_class(model_config)
 
     for epoch in range(model_config.n_epochs):
+        # Initialize model
         model.train()
 
-        for batch in tqdm(train_loader, mininterval=5.0):
+        # Initialize lists of losses and scores
+        train_losses = []
+        train_scores = {}
+        for score_class in score_classes:
+            train_scores[score_class] = []
+
+        # Training model
+        for batch in tqdm(train_loader, mininterval=5.0, leave=False):
+            # Optimizing model
             optimizer.zero_grad()
             batch = preprocessor(batch)
             batch = model(batch)
             loss = loss_fn(batch)
             loss.backward()
             optimizer.step()
+
+            # Append losses and scores to lists
+            train_losses.append(loss.cpu().detach())
+            for score_class in score_classes:
+                train_scores[score_class].append(score_fns[score_class](batch).cpu().detach())
+
+        # Print mean values of losses and scores as progress
+        print("Epoch:", epoch + 1, "| Loss:", torch.tensor(train_losses).mean())
+        for score_class in score_classes:
+            print(str(score_fns[score_class]) + ":", torch.tensor(train_scores[score_class]).mean())
 
 
 if __name__ == "__main__":

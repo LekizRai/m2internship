@@ -113,7 +113,7 @@ class TacGraspNetConfig(Config):
     batch_size: int = 1
 
     # Number of epochs
-    n_epochs: int = 1
+    n_epochs: int = 10
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {

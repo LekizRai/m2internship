@@ -158,28 +158,31 @@ class TacGraspNet(nn.Module):
                 )
 
                 # Normalize target node outputs (target displacements)
-                batch["targets.nodes.outputs"] = batch["vertices.positions"] - starting_pos # Target displacements
+                batch["targets.nodes.outputs"] = batch["vertices.positions"] - starting_pos  # Target displacements
                 # Store only normalized tactile sensor node outputs
                 batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer(
                     # Only normalize tactile sensor node outputs
-                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
+                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT],
+                    is_training=self._config.is_training
                 )
 
                 # Normalize target tetrahedral outputs (target stresses)
                 batch["targets.tetrahedra.outputs"] = batch["tetrahedra.stresses"]
                 batch["targets.tetrahedra.normalized_outputs"] = self._tetra_output_normalizer(
-                    batch["targets.tetrahedra.outputs"]
+                    batch["targets.tetrahedra.outputs"],
+                    is_training=self._config.is_training
                 )
-            else: # Normalize corresponding outputs otherwise
+            else:  # Normalize corresponding outputs otherwise
                 batch["targets.nodes.outputs"] = torch.cat([
                     batch["vertices.positions"] - starting_pos,
                     batch["vertices.stresses"]
                 ], dim=-1)
                 # Store only normalized tactile sensor node outputs
-                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer([
+                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer(
                     # Only normalize tactile sensor node outputs
-                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
-                ])
+                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT],
+                    is_training=self._config.is_training
+                )
 
         # Encode
         batch = self._encode(batch)
