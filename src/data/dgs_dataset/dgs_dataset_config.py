@@ -4,6 +4,7 @@ from typing import List
 from dataclasses import dataclass, field
 
 from commons.config import Config
+from utils.directory import get_project_root_folder
 
 
 """
@@ -43,8 +44,10 @@ class DGSDatasetConfig(Config):
     ########################################
     ## Path configuration
     ########################################
+    # Get project root folder
+    proj_root_folder: str = get_project_root_folder()
     # Directory of the whole dataset
-    dataset_path: str = "../dgs_dataset"
+    dataset_path: str = os.path.normpath(os.path.join(proj_root_folder, "../dgs_dataset"))
     # Directory of DefGraspNet (DGN) dataset which contains some important information
     dgn_dataset_path: str = os.path.join(dataset_path, "dgn_dataset")
     # Directory of simulation outputs (.h5 files) by DefGraspSim
