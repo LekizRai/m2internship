@@ -1,6 +1,7 @@
 import torch
 
 from torch import nn
+import torch.nn.functional as F
 
 from commons.datatype import Databatch, NodeType
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
@@ -36,8 +37,8 @@ class StressMAE(nn.Module):
         else: # Otherwise
             # Extract only target and predicted outputs from tactile sensor nodes
             target_stresses = batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
-            pred = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
-            _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
+            pred_stresses = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+            # _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         stress_l1_error = torch.norm(pred_stresses - target_stresses, p=1, dim=-1)
         return torch.mean(stress_l1_error)

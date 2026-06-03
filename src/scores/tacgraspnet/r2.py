@@ -39,8 +39,8 @@ class StressR2PerSample(nn.Module):
         else: # Otherwise
             # Extract only target and predicted outputs from tactile sensor nodes
             target_stresses = batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
-            pred = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
-            _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
+            pred_stresses = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+            # _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         self._r2_score_fn.reset()
         self._r2_score_fn.update(pred_stresses, target_stresses)
