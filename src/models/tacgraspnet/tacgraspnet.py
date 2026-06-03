@@ -134,6 +134,7 @@ class TacGraspNet(nn.Module):
         return new_batch
 
     def _update(self, batch: Databatch) -> Databatch:
+        # TODO
         # Unnormalize node (and tetrahedral) outputs to compute next positions and scores
         if self._config.normalize_outputs: # If flag is true, then using normalizers
             if self._config.use_node_tetra_separate_decoders:

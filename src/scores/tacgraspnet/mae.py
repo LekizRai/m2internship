@@ -31,13 +31,12 @@ class StressMAE(nn.Module):
     def forward(self, batch: Databatch) -> torch.Tensor:
         if self._config.use_node_tetra_separate_decoders: # Check if separate decoders for nodes and tetrahedra are used
             # Extract target and predicted stresses from tetrahedra
-            target_stresses = batch["targets.tetrahedra.normalized_outputs"]
-            pred_stresses = batch["tetrahedra.outputs"]
+            target_stresses = batch["tetrahedra.stresses"]
+            pred_stresses = batch["predictions.tetrahedra.stresses"]
         else: # Otherwise
             # Extract only target and predicted outputs from tactile sensor nodes
-            target = batch["targets.nodes.normalized_outputs"]
-            pred = batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
-            _, target_stresses = torch.split(target, [3, 1], dim=-1)
+            target_stresses = batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+            pred = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
             _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         stress_l1_error = torch.norm(pred_stresses - target_stresses, p=1, dim=-1)

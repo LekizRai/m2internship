@@ -5,7 +5,6 @@ import h5py
 import torch
 
 from typing import List, Dict
-from h5py import File
 from torch.utils.data import Dataset
 
 from commons.datatype import (
@@ -206,12 +205,7 @@ class DGSDataset(Dataset):
         if obj not in self._obj_reusable_data:
             # Initialize object mesh path and check if file exists, otherwise raise FileNotFound error
             obj_mesh_path = os.path.join(self._config.dgn_dataset_path, obj, f"{obj}_processed.stl")
-            ############################################################
-            # TODO
-            grasp_file = h5py.File(os.path.join(self._config.dgn_dataset_path, obj, f"{obj}_grasps.h5"), "r")
-            grasp_data = dict(grasp_file)
-            __file = torch.tensor(file["_1_stacked_stresses"])
-            ############################################################
+
             if not os.path.isfile(obj_mesh_path):
                 raise FileNotFoundError(obj_mesh_path)
 

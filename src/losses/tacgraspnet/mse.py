@@ -19,7 +19,7 @@ class MSE(nn.Module):
             target_disps = batch["targets.nodes.normalized_outputs"]
             pred_disps = batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
             # Extract target and predicted stresses from tetrahedra
-            target_stresses = batch["targets.tetrahedra.outputs"]
+            target_stresses = batch["targets.tetrahedra.normalized_outputs"]
             pred_stresses = batch["tetrahedra.outputs"]
         else: # Otherwise
             # Extract only target and predicted outputs from tactile sensor nodes
