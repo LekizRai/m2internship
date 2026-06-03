@@ -19,17 +19,18 @@ class TacGraspNetConfig(Config):
     # It is used mainly for normalizer. Normalization is conducted only during running process
     is_training: bool = True
 
-    # Indicate whether the normalized outputs are predicted or not
-    predict_normalized: bool = True
-
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
     use_template_data: bool = False
 
-    # Indicate whether layer normalization is used for all MLP final layers or not
+    # Indicate whether layer normalization is used for all MLP final layers (except decoder) or not
     use_final_layer_norm: bool = True
 
-    # Indicate whether features are normalized or not
+    # Indicate whether node and edge features are normalized or not
     normalize_features: bool = True
+
+    # Indicate whether the predicted outputs are normalized or not for loss calculation
+    # It is also used to indicate whether the layer normalization is used for decoder final layer or not
+    normalize_outputs: bool = True
 
     # Indicate whether we use two separate or only one (combining) decoder for node and tetrahedral features
     use_node_tetra_separate_decoders: bool = True
@@ -41,8 +42,8 @@ class TacGraspNetConfig(Config):
     # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
     use_message_passing_separate_mlps: bool = True
 
-    # Indicate whether loss is computed on normalized data or not
-    compute_loss_with_normalization: bool = False
+    # Indicate whether translation inductive bias is used for training and evaluation or not
+    use_translation_inductive_bias: bool = False
 
     ########################################
     ## Modeling configuration

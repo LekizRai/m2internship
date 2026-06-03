@@ -130,7 +130,7 @@ class GraphBuildingProcessor(Processor):
             # Note that cumulative node index value is not needed here
             senders = contact_edges[..., 0]  # Get contact edge sender indices
             receivers = contact_edges[..., 1]  # Get contact edge receiver indices
-
+            # TODO
             # Compute relative displacement for each contact edge at second frame
             relative_2nd_frame_disps = (batch["2nd_frame.vertices.positions"][receivers]
                                         - batch["2nd_frame.vertices.positions"][senders])

@@ -1,12 +1,14 @@
-from typing import Dict, Any
 import torch
+
 from torch import nn
+import torch.nn.functional as F
 
 from models.commons.mlp import MLP
 from models.commons.graphnetblock import GraphNetBlock
 from models.commons.normalizer import Normalizer
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 from commons.datatype import Databatch, NodeType
+from utils.transform import split_two_fingers, kabsch
 
 
 class TacGraspNet(nn.Module):
@@ -63,7 +65,7 @@ class TacGraspNet(nn.Module):
             output_dim=config.node_output_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
-            is_hidden_normalized=config.normalize_features, # Here, instead, depend on whether features are normalized or not
+            is_hidden_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
         ).to(config.device)
 
         # Initialize MLP for tetrahedron decoding
@@ -131,9 +133,124 @@ class TacGraspNet(nn.Module):
 
         return new_batch
 
-    # TODO
-    def update(self, batch: Databatch) -> Databatch:
-        batch = self.forward(batch)
+    def _update(self, batch: Databatch) -> Databatch:
+        # Unnormalize node (and tetrahedral) outputs to compute next positions and scores
+        if self._config.normalize_outputs: # If flag is true, then using normalizers
+            if self._config.use_node_tetra_separate_decoders:
+                unnormalized_pred_disps = self._node_output_normalizer.inverse(batch["nodes.outputs"])
+                unnormalized_pred_stresses = self._tetra_output_normalizer.inverse(batch["tetrahedra.outputs"])
+            else:
+                unnormalized_outputs = self._node_output_normalizer.inverse(batch["nodes.outputs"])
+                unnormalized_pred_disps, unnormalized_pred_stresses = torch.split(
+                    unnormalized_outputs,
+                    [3, 1],
+                    dim=-1
+                )
+        else: # Otherwise, the outputs themselves are unnormalized
+            if self._config.use_node_tetra_separate_decoders:
+                unnormalized_pred_disps = batch["nodes.outputs"]
+                unnormalized_pred_stresses = batch["tetrahedra.outputs"]
+            else:
+                unnormalized_pred_disps, unnormalized_pred_stresses = torch.split(
+                    batch["nodes.outputs"],
+                    [3, 1],
+                    dim=-1
+                )
+
+        # Extract vertice positions of objects (since it is unchanged)
+        pred_obj_pos = batch["vertices.positions"][batch["nodes.types"] == NodeType.OBJECT]
+        # Extract displacements of tactile sensor nodes only
+        unnormalized_pred_ts_disps = unnormalized_pred_disps[batch["nodes.types"] != NodeType.OBJECT]
+
+        if self._config.use_translation_inductive_bias: # Carry out adding translation
+            if self._config.use_template_data:
+                A = batch["template.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
+            else:
+                A = batch["2nd_frame.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
+            B = batch["vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
+
+            left_idx, right_idx = split_two_fingers(A)
+            Al, Bl = A[left_idx], B[left_idx]
+            Ar, Br = A[right_idx], B[right_idx]
+
+            Rl, tl = kabsch(Al, Bl)
+            Rr, tr = kabsch(Ar, Br)
+
+            baseline = torch.zeros_like(A)
+            baseline[left_idx] = Al @ Rl.T + tl
+            baseline[right_idx] = Ar @ Rr.T + tr
+
+            resid = unnormalized_pred_ts_disps
+            resid_world = torch.zeros_like(resid)
+            resid_world[left_idx] = resid[left_idx] @ Rl.T
+            resid_world[right_idx] = resid[right_idx] @ Rr.T
+
+            pred_ts_pos = baseline.clone()
+            pred_ts_pos[left_idx] = baseline[left_idx] + resid_world[left_idx]
+            pred_ts_pos[right_idx] = baseline[right_idx] + resid_world[right_idx]
+
+            # world residual → local residual per finger
+            world_resid = B - baseline
+            target_ts_disps = torch.zeros_like(world_resid)
+            target_ts_disps[left_idx] = world_resid[left_idx] @ Rl
+            target_ts_disps[right_idx] = world_resid[right_idx] @ Rr
+        else:
+            if self._config.use_template_data:
+                pred_ts_pos = (batch["template.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
+                               + unnormalized_pred_ts_disps)
+                target_ts_disps = batch["vertices.positions"] - batch["template.vertices.positions"]
+            else:
+                pred_ts_pos = (batch["2nd_frame.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
+                               + unnormalized_pred_ts_disps)
+                target_ts_disps = (batch["vertices.positions"]
+                                   - batch["2nd_frame.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
+
+        # Concatenate in the same order as Datapoint (object first, then gripper)
+        pred_pos = torch.cat((pred_ts_pos, pred_obj_pos), dim=-2)
+
+        # Stress: zero for object nodes, keep predicted for gripper nodes
+        if not self._config.use_node_tetra_separate_decoders:
+            unnormalized_pred_stresses[batch["nodes.types"] == NodeType.OBJECT] = 0.0
+        unnormalized_pred_stresses = F.relu(unnormalized_pred_stresses)
+
+        # Add predicted value
+        batch["predictions.vertices.positions"] = pred_pos
+        batch["predictions.vertices.displacements"] = unnormalized_pred_disps
+        if self._config.use_node_tetra_separate_decoders:
+            batch["predictions.tetrahedra.stresses"] = unnormalized_pred_stresses
+        else:
+            batch["predictions.vertices.stresses"] = unnormalized_pred_stresses
+        ######
+
+        if self._config.use_node_tetra_separate_decoders:  # Extract both node and tetrahedral outputs if flag is true
+            # Extract only tactile sensor node outputs (target displacements)
+            batch["targets.nodes.outputs"] = target_ts_disps  # Target displacements
+            # Extract tetrahedral outputs
+            batch["targets.tetrahedra.outputs"] = batch["tetrahedra.stresses"] # Target stresses
+        else:
+            # Extract only tactile sensor node outputs
+            batch["targets.nodes.outputs"] = torch.cat([
+                target_ts_disps,
+                batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+            ], dim=-1)
+
+        # Normalize target outputs if flat is true
+        if self._config.normalize_outputs:
+            if self._config.use_node_tetra_separate_decoders:  # Normalize both node and tetrahedral outputs if flag is true
+                batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
+                    batch["targets.nodes.outputs"],
+                    is_training=self._config.is_training
+                ) # Normalize node outputs (Target displacements)
+                batch["targets.tetrahedra.normalized_outputs"] = self._tetra_output_normalizer(
+                    batch["targets.tetrahedra.outputs"],
+                    is_training=self._config.is_training
+                ) # Normalize tetrahedral outputs (target stresses)
+            else:  # Normalize only node outputs otherwise
+                batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
+                    batch["targets.nodes.outputs"],
+                    is_training=self._config.is_training
+                ) # Normalize node outputs (Target displacements and stresses)
+
         return batch
 
     def forward(self, batch: Databatch) -> Databatch:
@@ -148,39 +265,9 @@ class TacGraspNet(nn.Module):
                     batch[edge_type + ".features"],
                     is_training=self._config.is_training
                 )
-            # Get starting positions to compute target displacements
-            starting_pos = batch["template.vertices.positions"] if self._config.use_template_data \
-                           else batch["2nd_frame.vertices.positions"]
-            if self._config.use_node_tetra_separate_decoders:  # Normalize corresponding outputs and tetrahedral features if flag is true
+            if self._config.use_node_tetra_separate_decoders:  # Normalize tetrahedral features if flag is true
                 batch["tetrahedra.features"] = self._tetra_normalizer(
                     batch["tetrahedra.features"],
-                    is_training=self._config.is_training
-                )
-
-                # Normalize target node outputs (target displacements)
-                batch["targets.nodes.outputs"] = batch["vertices.positions"] - starting_pos  # Target displacements
-                # Store only normalized tactile sensor node outputs
-                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer(
-                    # Only normalize tactile sensor node outputs
-                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT],
-                    is_training=self._config.is_training
-                )
-
-                # Normalize target tetrahedral outputs (target stresses)
-                batch["targets.tetrahedra.outputs"] = batch["tetrahedra.stresses"]
-                batch["targets.tetrahedra.normalized_outputs"] = self._tetra_output_normalizer(
-                    batch["targets.tetrahedra.outputs"],
-                    is_training=self._config.is_training
-                )
-            else:  # Normalize corresponding outputs otherwise
-                batch["targets.nodes.outputs"] = torch.cat([
-                    batch["vertices.positions"] - starting_pos,
-                    batch["vertices.stresses"]
-                ], dim=-1)
-                # Store only normalized tactile sensor node outputs
-                batch["targets.tactile_sensors.nodes.normalized_outputs"] = self._node_output_normalizer(
-                    # Only normalize tactile sensor node outputs
-                    batch["targets.nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT],
                     is_training=self._config.is_training
                 )
 
@@ -198,4 +285,4 @@ class TacGraspNet(nn.Module):
         # Decode
         batch = self._decode(batch)
 
-        return batch
+        return self._update(batch)

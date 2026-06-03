@@ -16,8 +16,8 @@ from scores.tacgraspnet.mae import DisplacementMAE, StressMAE
 def sample_train():
     # Initialize dataset
     dataset_config = DGSDatasetConfig()
-    dataset_config.focused_objs = ["sphere01"]
-    dataset_config.focused_trajs = [25]
+    dataset_config.focused_objs = ["potato2"]
+    dataset_config.focused_trajs = [30]
     dataset = DGSDataset(dataset_config)
 
     # Train test split

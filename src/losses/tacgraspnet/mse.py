@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 from commons.datatype import Databatch, NodeType
+from utils.transform import split_two_fingers, kabsch
 
 
 class MSE(nn.Module):
@@ -15,14 +16,14 @@ class MSE(nn.Module):
     def forward(self, batch: Databatch) -> torch.Tensor:
         if self._config.use_node_tetra_separate_decoders: # Check if separate decoders for nodes and tetrahedra are used
             # Extract only target and predicted displacements from tactile sensor nodes
-            target_disps = batch["targets.tactile_sensors.nodes.normalized_outputs"]
+            target_disps = batch["targets.nodes.normalized_outputs"]
             pred_disps = batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
             # Extract target and predicted stresses from tetrahedra
-            target_stresses = batch["targets.tetrahedra.normalized_outputs"]
+            target_stresses = batch["targets.tetrahedra.outputs"]
             pred_stresses = batch["tetrahedra.outputs"]
         else: # Otherwise
             # Extract only target and predicted outputs from tactile sensor nodes
-            target = batch["targets.tactile_sensors.nodes.normalized_outputs"]
+            target = batch["targets.nodes.normalized_outputs"]
             pred = batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT]
             target_disps, target_stresses = torch.split(target, [3, 1], dim=-1)
             pred_disps, pred_stresses = torch.split(pred, [3, 1], dim=-1)
