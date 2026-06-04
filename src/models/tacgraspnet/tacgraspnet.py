@@ -76,7 +76,7 @@ class TacGraspNet(nn.Module):
                 output_dim=config.tetra_output_dim,
                 hidden_dims=config.hidden_dims,
                 output_activation=nn.ReLU(),
-                is_hidden_normalized=config.normalize_features, # Here, instead, depend on whether features are normalized or not
+                is_hidden_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
             ).to(config.device)
 
         # Initialize normalizers for feature normalization if flag is true

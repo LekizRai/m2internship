@@ -17,7 +17,7 @@ def sample_train():
     # Initialize dataset
     dataset_config = DGSDatasetConfig()
     dataset_config.focused_objs = ["potato2"]
-    dataset_config.focused_trajs = [15]
+    # dataset_config.focused_trajs = [15]
     dataset = DGSDataset(dataset_config)
 
     # Train test split
