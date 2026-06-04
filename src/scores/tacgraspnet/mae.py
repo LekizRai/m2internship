@@ -41,8 +41,6 @@ class StressMAE(nn.Module):
             # _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         stress_l1_error = torch.norm(pred_stresses - target_stresses, p=1, dim=-1)
-        print(max(target_stresses))
-        print(min(target_stresses))
         print(max(abs(target_stresses-pred_stresses)))
         return torch.mean(stress_l1_error)
 
