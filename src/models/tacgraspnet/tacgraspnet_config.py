@@ -118,7 +118,7 @@ class TacGraspNetConfig(Config):
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {
-        "lr": 1e-3,
+        "lr": 1e-4,
     })
 
     def __post_init__(self):
