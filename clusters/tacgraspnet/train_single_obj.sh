@@ -37,7 +37,7 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 # Activate your newly re-created internship environment
 conda activate m2internship
 
-cd ../../
+cd ../
 
 export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 
