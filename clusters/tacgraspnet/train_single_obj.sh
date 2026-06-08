@@ -43,6 +43,6 @@ export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 
 # --- 4. Execution ---
 # Run your training file directly on the Newton filesystem
-~/.conda/envs/m2internship/bin/python src/scripts/tacgraspnet/run.py \
+~/.conda/envs/m2internship/bin/python scripts/tacgraspnet/run.py \
 -m training \
 -ds single_obj
