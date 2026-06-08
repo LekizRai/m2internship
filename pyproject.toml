@@ -8,6 +8,8 @@ version = "0.1.0"
 description = ""
 dependencies = [
     "torch",
+    "torchmetrics",
+    "trimesh",
 ]
 
 [tool.setuptools.packages.find]
