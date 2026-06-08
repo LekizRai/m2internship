@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # Data retrieval strategy for training
     arg_parser.add_argument(
         "-ds",
-        "--data_strategy",
+        "--data-strategy",
         choices=[
             # Train on single object with fixed grasping poses (trajectories), test on the others
             "single_obj",
