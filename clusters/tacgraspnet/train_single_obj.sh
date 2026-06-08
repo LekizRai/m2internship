@@ -37,8 +37,12 @@ source "$CONDA_BASE/etc/profile.d/conda.sh"
 # Activate your newly re-created internship environment
 conda activate m2internship
 
+cd ../../
+
+export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
+
 # --- 4. Execution ---
 # Run your training file directly on the Newton filesystem
-python ../../src/scripts/tacgraspnet/run.py
+python src/scripts/tacgraspnet/run.py
     --mode training
     --data-strategy single_obj
