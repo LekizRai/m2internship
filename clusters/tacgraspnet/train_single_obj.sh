@@ -24,11 +24,11 @@ fi
 mkdir -p logs
 
 # --- 3. Environment Setup (Newton Cluster Specific) ---
-# Clean system modules to prevent conflicts
-module purge
-
-# Load the modern Anaconda module available on Newton
-module load Anaconda3/2025.06-1
+## Clean system modules to prevent conflicts
+#module purge
+#
+## Load the modern Anaconda module available on Newton
+#module load Anaconda3/2025.06-1
 
 ## Source the cluster-specific conda profile script to make 'conda activate' work inside Slurm
 #CONDA_BASE=$(conda info --base)
@@ -37,12 +37,12 @@ module load Anaconda3/2025.06-1
 ## Activate your newly re-created internship environment
 #conda activate m2internship
 #
-#cd ../../
+cd ~/m2internship/m2internship
 
 export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 
 # --- 4. Execution ---
 # Run your training file directly on the Newton filesystem
-/home/liris/htruong/.conda/envs/m2internship/bin/python src/scripts/tacgraspnet/run.py
+~/.conda/envs/m2internship/bin/python src/scripts/tacgraspnet/run.py
 --mode training
 --data-strategy single_obj
