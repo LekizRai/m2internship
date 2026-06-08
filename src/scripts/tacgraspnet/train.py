@@ -103,6 +103,8 @@ def get_data_loaders(model_config: TacGraspNetConfig):
 
 def train(model_config: TacGraspNetConfig):
     if model_config.mode == "training":
+        print(model_config.device)
+        
         # Construct data loaders
         train_loader, validation_loader = get_data_loaders(model_config)
 
