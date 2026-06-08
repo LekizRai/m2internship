@@ -30,19 +30,19 @@ module purge
 # Load the modern Anaconda module available on Newton
 module load Anaconda3/2025.06-1
 
-# Source the cluster-specific conda profile script to make 'conda activate' work inside Slurm
-CONDA_BASE=$(conda info --base)
-source "$CONDA_BASE/etc/profile.d/conda.sh"
-
-# Activate your newly re-created internship environment
-conda activate m2internship
-
-cd ../../
+## Source the cluster-specific conda profile script to make 'conda activate' work inside Slurm
+#CONDA_BASE=$(conda info --base)
+#source "$CONDA_BASE/etc/profile.d/conda.sh"
+#
+## Activate your newly re-created internship environment
+#conda activate m2internship
+#
+#cd ../../
 
 export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 
 # --- 4. Execution ---
 # Run your training file directly on the Newton filesystem
-python src/scripts/tacgraspnet/run.py
-    --mode training
-    --data-strategy single_obj
+/home/liris/htruong/.conda/envs/m2internship/bin/python src/scripts/tacgraspnet/run.py
+--mode training
+--data-strategy single_obj
