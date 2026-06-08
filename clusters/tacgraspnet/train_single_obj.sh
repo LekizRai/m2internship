@@ -25,7 +25,8 @@ mkdir -p logs
 
 # --- 3. Environment Setup (Newton Cluster Specific) ---
 ## Clean system modules to prevent conflicts
-#module purge
+module purge
+module load CUDA/12.8.0
 #
 ## Load the modern Anaconda module available on Newton
 #module load Anaconda3/2025.06-1
