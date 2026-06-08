@@ -24,7 +24,7 @@ class Normalizer(nn.Module):
         self.register_buffer("_n_accumulations", torch.zeros(1).to(config.device)) # Number of accumulations carried out
 
     def forward(self, feature_batch: torch.Tensor, is_training: bool = False) -> torch.Tensor:
-        # Do statistics accumulation only when the model is running and number of accumulations does not exceed maximum number
+        # Do statistics accumulation only when the model is run.py and number of accumulations does not exceed maximum number
         if is_training and self._n_accumulations < self._max_accumulations:
             self._accumulate(feature_batch)
 

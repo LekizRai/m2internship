@@ -52,3 +52,6 @@ class DGSDatasetConfig(Config):
     dgn_dataset_path: str = os.path.join(dataset_path, "dgn_dataset")
     # Directory of simulation outputs (.h5 files) by DefGraspSim
     dgs_output_path: str = os.path.join(dataset_path, "dgs_output")
+
+    def update(self, args):
+        focused_objs = args.focused_objs

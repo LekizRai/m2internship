@@ -15,8 +15,8 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Important flags
     ########################################
-    # Indicate whether the model is running or not
-    # It is used mainly for normalizer. Normalization is conducted only during running process
+    # Indicate whether the model is run.py or not
+    # It is used mainly for normalizer. Normalization is conducted only during run.py process
     is_training: bool = True
 
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
@@ -76,7 +76,7 @@ class TacGraspNetConfig(Config):
         node_output_dim: int = 3 # Deformation (displacement) (3)
         tetra_output_dim: int = 1 # Stress (1)
     else: # Prediction at each node including displacement and stress
-        node_output_dim = 4 # Deformation (displacement) (3) + stress (1)
+        node_output_dim: int = 4 # Deformation (displacement) (3) + stress (1)
 
     # MLPs configuration
     # The same hidden configuration for all updating MLPs in GraphNetBlock
@@ -107,8 +107,8 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Training configuration
     ########################################
-    # Training
-    training_ratio: float = 0.8
+    # Validation ratio (for training-validation splitting)
+    validation_ratio: float = 0.2
 
     # Batch size
     batch_size: int = 1
@@ -121,6 +121,89 @@ class TacGraspNetConfig(Config):
         "lr": 1e-4,
     })
 
+    ########################################
+    ## Running configuration
+    ########################################
+    # Running mode (training or evaluation)
+    mode: str = "training"
+
+    # Data strategy (single object, multiple objects 1 or multiple objects 2) # TODO
+    data_strategy: str = "single_obj"
+
+    # Focused objects (for training or evaluation)
+    objs: List[str] = field(default_factory=lambda: ["sphere01"])
+
+    # Validation objects (only for training with multiple objects)
+    validation_objs: List[str] = field(default_factory=lambda: ["sphere01"])
+
+    # This attribute is used to store arguments from keyboard
+    args = None
+
+
     def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers
+
+    def update(self, args):
+        # Important flags
+        self.is_training = args.mode == "training"
+        self.use_template_data = args.use_template_data
+        self.use_final_layer_norm = args.use_final_layer_norm
+        self.normalize_features = args.normalize_features
+        self.normalize_outputs = args.normalize_outputs
+        self.use_node_tetra_separate_decoders = args.use_node_tetra_separate_decoders
+        self.use_separate_edge_mlps = args.use_separate_edge_mlps
+        self.use_message_passing_separate_mlps = args.use_message_passing_separate_mlps
+        self.use_translation_inductive_bias = args.use_translation_inductive_bias
+
+        # Modeling configuration
+        # Edge update
+        if self.use_template_data:
+            self.edge_feature_dims = {
+                "mesh_edges": 4,
+                "contact_edges": 5,
+            }
+        else:
+            self.edge_feature_dims = {
+                "mesh_edges": 8,
+                "contact_edges": 5,
+            }
+        # Node update
+        if self.use_node_tetra_separate_decoders:
+            self.node_output_dim = 3
+            self.tetra_output_dim = 1
+        else:
+            self.node_output_dim = 4
+
+        # MLP update
+        self.n_hidden_layers = args.n_hidden_layers
+        self.hidden_dims = [128] * self.n_hidden_layers
+        self.latent_dim = args.latent_dim
+
+        # Message passing update
+        self.message_passing_steps = args.message_passing_steps
+
+        # Graph building update
+        self.radius = args.radius
+
+        # Training update
+        self.validation_ratio = args.validation_ratio
+        self.batch_size = args.batch_size
+        self.n_epochs = args.n_epochs
+        self.optimizer_params = {
+            "lr": args.learning_rate,
+        }
+
+        # Running update
+        self.mode = args.mode
+        self.data_strategy = args.data_strategy
+        self.objs = args.objs
+
+        # Eliminate objects for training out of objects for validation
+        self.validation_objs = []
+        for obj in args.validation_objs:
+            if obj not in self.objs:
+                self.validation_objs.append(obj)
+
+        # Store all those from keyboard arguments also
+        self.args = args
     

@@ -29,8 +29,8 @@ class MSE(nn.Module):
             pred_disps, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         #########################################################################
-        # disp_l2_error = torch.norm(pred_disps - target_disps, p=2, dim=-1)
-        # stress_l2_error = torch.norm(pred_stresses - target_stresses, p=2, dim=-1)
+        # disp_l2_squared_error = torch.norm(pred_disps - target_disps, p=2, dim=-1) ** 2
+        # stress_l2_squared_error = torch.norm(pred_stresses - target_stresses, p=2, dim=-1) ** 2
         # disp_mse = torch.mean(disp_l2_error)
         # stress_mse = torch.mean(stress_l2_error)
         #########################################################################
