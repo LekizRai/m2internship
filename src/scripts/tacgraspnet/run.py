@@ -1,3 +1,13 @@
+import sys
+import os
+
+print("=" * 50)
+print("DIAGNOSTIC CHECK")
+print("Active Python Executable:", sys.executable)
+print("PYTHONPATH Environment Variable:", os.environ.get('PYTHONPATH', 'Not Set'))
+print("First entry in sys.path:", sys.path[0])
+print("=" * 50)
+
 import argparse
 
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
@@ -6,16 +16,6 @@ from train import train
 
 
 if __name__ == "__main__":
-    import sys
-    import os
-
-    print("=" * 50)
-    print("DIAGNOSTIC CHECK")
-    print("Active Python Executable:", sys.executable)
-    print("PYTHONPATH Environment Variable:", os.environ.get('PYTHONPATH', 'Not Set'))
-    print("First entry in sys.path:", sys.path[0])
-    print("=" * 50)
-
     # Initialize model configuration
     model_config = TacGraspNetConfig()
 
