@@ -111,6 +111,7 @@ def train(model_config: TacGraspNetConfig):
         for score_class in score_classes:
             score_fns[score_class] = score_class(model_config)
 
+        torch.autograd.set_detect_anomaly(True, check_nan=False) #TODO
         for epoch in range(model_config.n_epochs):
             # Initialize model
             model.train()
