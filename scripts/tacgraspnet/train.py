@@ -163,24 +163,24 @@ def train(model_config: TacGraspNetConfig):
                 batch = preprocessor(batch)
                 print("preprocessor")
                 pbar.set_postfix_str(get_complete_memory_string())
-                batch = model(batch)
-                print("model")
-                pbar.set_postfix_str(get_complete_memory_string())
-                loss = loss_fn(batch)
-                print("loss")
-                pbar.set_postfix_str(get_complete_memory_string())
-                loss.backward()
-                print("backward")
-                pbar.set_postfix_str(get_complete_memory_string())
-                optimizer.step()
-                print("step")
-                pbar.set_postfix_str(get_complete_memory_string())
+                # batch = model(batch)
+                # print("model")
+                # pbar.set_postfix_str(get_complete_memory_string())
+                # loss = loss_fn(batch)
+                # print("loss")
+                # pbar.set_postfix_str(get_complete_memory_string())
+                # loss.backward()
+                # print("backward")
+                # pbar.set_postfix_str(get_complete_memory_string())
+                # optimizer.step()
+                # print("step")
+                # pbar.set_postfix_str(get_complete_memory_string())
 
                 # Update train loss and score sums
-                with torch.no_grad():
-                    train_loss_sum += loss.item()
-                    for score_class in score_classes:
-                        train_score_sums[score_class] += score_fns[score_class](batch).item()
+                # with torch.no_grad():
+                #     train_loss_sum += loss.item()
+                #     for score_class in score_classes:
+                #         train_score_sums[score_class] += score_fns[score_class](batch).item()
 
                 # Update number of batches variable
                 n_batches += 1.0
