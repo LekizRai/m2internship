@@ -6,8 +6,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=hoang-nguyen-vu.truong@ec-lyon.fr
-#SBATCH --output=~/m2internship/m2internship/clusters/logs/%x_%j.log
-#SBATCH --error=~/m2internship/m2internship/clusters/logs/%x_%j.err
+#SBATCH --output=%h/m2internship/m2internship/clusters/logs/%x_%j.log
+#SBATCH --error=%h/m2internship/m2internship/clusters/logs/%x_%j.err
 
 
 OBJECT_NAME=$1
@@ -17,7 +17,7 @@ if [ -z "$OBJECT_NAME" ]; then
     exit 1
 fi
 
-mkdir -p logs
+mkdir -p ~/m2internship/m2internship/clusters/logs
 
 module purge
 module load CUDA/12.8.0
