@@ -1,3 +1,4 @@
+import torch
 import argparse
 
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
@@ -8,6 +9,8 @@ from train import train
 if __name__ == "__main__":
     # Initialize model configuration
     model_config = TacGraspNetConfig()
+    print(model_config.device)
+    print(torch.cuda.is_available())
 
     # Initialize data configuration
     data_config = DGSDatasetConfig()
