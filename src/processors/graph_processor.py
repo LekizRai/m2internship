@@ -143,9 +143,6 @@ class GraphBuildingProcessor(Processor):
                 force_per_contact_edge,
                 device=self._config.device
             )
-            print(relative_2nd_frame_disps.device)
-            print(torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True).device)
-            print(force_features.device)
 
             # Build contact edge features
             contact_edge_features = torch.cat([
@@ -185,7 +182,10 @@ class GraphBuildingProcessor(Processor):
                 batch["tactile_sensors.normals"][idx, 1, ...],
                 (n_ts_comp_nodes, 1)
             ) # Set right tactile sensor node velocities as right tactile sensor normal
-            obj_node_velocities = torch.zeros((n_obj_nodes, 3), device=self._config.device) # Set object node velocities as zeros
+            obj_node_velocities = torch.zeros((n_obj_nodes, 3)) # Set object node velocities as zeros
+            print(ts_left_node_velocities.device)
+            print(ts_right_node_velocities.device)
+            print(obj_node_velocities.device)
 
             # Add velocities to node velocity list
             node_velocities.extend([
