@@ -99,16 +99,9 @@ class TacGraspNetConfig(Config):
     ########################################
 
     # Set up available device
-    print("##")
-    print(torch.cuda.is_available())
-    print("##")
     if torch.cuda.is_available():
-        print("cuda")
-        print(torch.cuda.is_available())
         device: str = "cuda"
     else:
-        print("cpu")
-        print(torch.cuda.is_available())
         device: str = "cpu"
 
     ########################################
