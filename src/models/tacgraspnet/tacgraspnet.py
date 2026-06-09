@@ -131,16 +131,24 @@ class TacGraspNet(nn.Module):
                 ).to(config.device)
 
     def _encode(self, batch: Databatch) -> Databatch:
+        print("init")
+        print(get_complete_memory_string())
         # Encode node features
         batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
+        print("node")
+        print(get_complete_memory_string())
 
         # Encode edge features
         for edge_type in self._config.edge_types:
             batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
+            print(edge_type)
+            print(get_complete_memory_string())
 
         # Encode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
             batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
+            print("tetra")
+            print(get_complete_memory_string())
 
         return batch
 
@@ -276,8 +284,6 @@ class TacGraspNet(nn.Module):
         return batch
 
     def forward(self, batch: Databatch) -> Databatch:
-        print("init")
-        print(get_complete_memory_string())
         # Normalize features if flag is true
         if self._config.normalize_features:
             batch["nodes.features"] = self._node_normalizer(
@@ -294,13 +300,9 @@ class TacGraspNet(nn.Module):
                     batch["tetrahedra.features"],
                     is_training=self._config.is_training
                 )
-        print("normalization")
-        print(get_complete_memory_string())
 
         # Encode
         batch = self._encode(batch)
-        print("encode")
-        print(get_complete_memory_string())
 
         # Process
         if self._config.use_message_passing_separate_mlps:  # Different GraphNetBlock for each message passing step
@@ -309,15 +311,8 @@ class TacGraspNet(nn.Module):
         else:  # The same GraphNetBlock for all message passing steps
             for _ in range(self._config.message_passing_steps):
                 batch = self._graphnetblock(batch)
-        print("message_passing")
-        print(get_complete_memory_string())
 
         # Decode
         batch = self._decode(batch)
-        print("decode")
-        print(get_complete_memory_string())
 
-        update = self._update(batch)
-        print("update")
-        print(get_complete_memory_string())
-        return update
+        return self._update(batch)
