@@ -142,6 +142,9 @@ class GraphBuildingProcessor(Processor):
                 (contact_edges.shape[-2], 1),
                 force_per_contact_edge
             )
+            print(relative_2nd_frame_disps.device)
+            print(torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True).device)
+            print(force_features.device)
 
             # Build contact edge features
             contact_edge_features = torch.cat([
