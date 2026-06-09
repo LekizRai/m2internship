@@ -3,8 +3,9 @@ import wandb
 import torch
 
 from tqdm import tqdm
+from datetime import datetime
 from torch.optim import AdamW
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import DataLoader
 
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 from data.dgs_dataset.dgs_dataset import DGSDataset
@@ -66,7 +67,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             batch_size=model_config.batch_size,
             shuffle=True,
             collate_fn=DGSDataset.collate,
-            # num_workers=2,
+            num_workers=4,
             pin_memory=True,
         )
 
@@ -77,7 +78,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             batch_size=1,
             shuffle=False,
             collate_fn=DGSDataset.collate,
-            # num_workers=2,
+            num_workers=4,
             pin_memory=True,
         )
 
@@ -87,15 +88,19 @@ def get_data_loaders(model_config: TacGraspNetConfig):
 
 def train(model_config: TacGraspNetConfig):
     if model_config.mode == "training":
-        print(model_config.device)
-        print(torch.cuda.is_available())
+        print("#" * 15)
+        print("Detected device:", model_config.device)
+        print("Training on:", "GPU" if torch.cuda.is_available() else "CPU")
+        print("#" * 15)
 
         # Construct data loaders
         train_loader, validation_loader = get_data_loaders(model_config)
 
         # Initialize logging
-        logging = wandb.init(
-            project="TacGraspNet", config=model_config.args.__dict__,
+        logger = wandb.init(
+            project="TacGraspNet",
+            name=f"train_{model_config.args.data_strategy}_{datetime.now().strftime('%m%d_%H%M')}",
+            config=model_config.args.__dict__,
         )
 
         # Initialize model
@@ -114,7 +119,7 @@ def train(model_config: TacGraspNetConfig):
         for score_class in score_classes:
             score_fns[score_class] = score_class(model_config)
 
-        torch.autograd.set_detect_anomaly(True, check_nan=False) #TODO
+        # Training
         for epoch in range(model_config.n_epochs):
             # Initialize model
             model.train()
@@ -156,7 +161,7 @@ def train(model_config: TacGraspNetConfig):
             print("Epoch:", epoch + 1, "| Average loss:", train_loss_sum / n_batches)
 
             # Do logging
-            logging.log(logs, step=epoch + 1, commit=True)
+            logger.log(logs, step=epoch + 1, commit=True)
 
         return None
     else:

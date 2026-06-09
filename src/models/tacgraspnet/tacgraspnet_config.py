@@ -137,7 +137,8 @@ class TacGraspNetConfig(Config):
     validation_objs: List[str] = field(default_factory=lambda: ["sphere01"])
 
     # This attribute is used to store arguments from keyboard
-    args = None
+    # Initialize it as dictionary
+    args = {}
 
     def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers
