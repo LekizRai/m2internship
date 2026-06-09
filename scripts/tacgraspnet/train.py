@@ -63,7 +63,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             batch_size=model_config.batch_size,
             shuffle=True,
             collate_fn=DGSDataset.collate,
-            num_workers=2,
+            # num_workers=2,
             pin_memory=True,
         )
 
@@ -74,7 +74,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             batch_size=1,
             shuffle=False,
             collate_fn=DGSDataset.collate,
-            num_workers=2,
+            # num_workers=2,
             pin_memory=True,
         )
 
