@@ -7,5 +7,5 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Config(ABC):
-    device: torch.device = torch.device("cpu")
+    device: str = "cpu"
     dataset_path: str = "."

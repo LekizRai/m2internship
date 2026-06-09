@@ -103,9 +103,13 @@ class TacGraspNetConfig(Config):
     print(torch.cuda.is_available())
     print("##")
     if torch.cuda.is_available():
-        device = "cuda"
+        print("cuda")
+        print(torch.cuda.is_available())
+        device: str = "cuda"
     else:
-        device = "cpu"
+        print("cpu")
+        print(torch.cuda.is_available())
+        device: str = "cpu"
 
     ########################################
     ## Training configuration
@@ -141,7 +145,6 @@ class TacGraspNetConfig(Config):
 
     # This attribute is used to store arguments from keyboard
     args = None
-
 
     def __post_init__(self):
         self.hidden_dims = [128] * self.n_hidden_layers
