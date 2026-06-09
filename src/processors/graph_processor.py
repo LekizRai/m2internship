@@ -183,9 +183,6 @@ class GraphBuildingProcessor(Processor):
                 (n_ts_comp_nodes, 1)
             ) # Set right tactile sensor node velocities as right tactile sensor normal
             obj_node_velocities = torch.zeros((n_obj_nodes, 3), device=self._config.device) # Set object node velocities as zeros
-            print(ts_left_node_velocities.device)
-            print(ts_right_node_velocities.device)
-            print(obj_node_velocities.device)
 
             # Add velocities to node velocity list
             node_velocities.extend([
