@@ -6,8 +6,8 @@
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=hoang-nguyen-vu.truong@ec-lyon.fr
-#SBATCH --output=%h/m2internship/m2internship/clusters/logs/%x_%j.log
-#SBATCH --error=%h/m2internship/m2internship/clusters/logs/%x_%j.err
+#SBATCH --output=../logs/%x_%j.log
+#SBATCH --error=../logs/%x_%j.err
 
 
 OBJECT_NAME=$1
