@@ -106,32 +106,28 @@ class TacGraspNet(nn.Module):
                 ).to(config.device)
 
     def _encode(self, batch: Databatch) -> Databatch:
-        new_batch = batch.copy()
-
         # Encode node features
-        new_batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
+        batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
 
         # Encode edge features
         for edge_type in self._config.edge_types:
-            new_batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
+            batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
 
         # Encode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
-            new_batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
+            batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
 
-        return new_batch
+        return batch
 
     def _decode(self, batch: Databatch) -> Databatch:
-        new_batch = batch.copy()
-
         # Decode node features
-        new_batch["nodes.outputs"] = self._node_decoder(batch["nodes.features"])
+        batch["nodes.outputs"] = self._node_decoder(batch["nodes.features"])
 
         # Decode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
-            new_batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
+            batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
 
-        return new_batch
+        return batch
 
     def _update(self, batch: Databatch) -> Databatch:
         # TODO
