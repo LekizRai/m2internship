@@ -18,7 +18,7 @@ class DisplacementR2PerSample(nn.Module):
         target_disps = batch["vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
         pred_disps = batch["predictions.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
         self._r2_score_fn.reset()
-        self._r2_score_fn.update(pred_disps, target_disps)
+        self._r2_score_fn.update(pred_disps.detach(), target_disps.detach())
         return self._r2_score_fn.compute()
 
     def __str__(self) -> str:
@@ -43,7 +43,7 @@ class StressR2PerSample(nn.Module):
             # _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         self._r2_score_fn.reset()
-        self._r2_score_fn.update(pred_stresses, target_stresses)
+        self._r2_score_fn.update(pred_stresses.detach(), target_stresses.detach())
         return self._r2_score_fn.compute()
 
     def __str__(self) -> str:

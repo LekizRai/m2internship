@@ -56,6 +56,9 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             validation_dataset_config.focused_objs = model_config.validation_objs # Here, we consider other objects for validation
             validation_dataset_config.focused_trajs = validation_frames
 
+        ##TODO
+        # train_dataset_config.focused_trajs = [0]
+        ##
         # Construct train data loader
         train_dataset = DGSDataset(train_dataset_config)  # Construct train dataset
         train_loader = DataLoader(
@@ -137,8 +140,9 @@ def train(model_config: TacGraspNetConfig):
 
                 # Update train loss and score sums
                 train_loss_sum += loss.item()
-                for score_class in score_classes:
-                    train_score_sums[score_class] += score_fns[score_class](batch).item()
+                with torch.no_grad():
+                    for score_class in score_classes:
+                        train_score_sums[score_class] += score_fns[score_class](batch).item()
 
                 # Update number of batches variable
                 n_batches += 1.0

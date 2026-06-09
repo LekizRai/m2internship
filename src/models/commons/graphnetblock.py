@@ -151,10 +151,10 @@ class GraphNetBlock(nn.Module):
             batch["tetrahedra.features"] = self._update_tetra_features(batch)
 
         # Add residual connections
-        batch["nodes.features"] += old_info["nodes.features"]
+        batch["nodes.features"] = batch["nodes.features"] + old_info["nodes.features"]
         for edge_type in self._config.edge_types:
-            batch[edge_type + ".features"] += old_info[edge_type + ".features"]
+            batch[edge_type + ".features"] = batch[edge_type + ".features"] + old_info[edge_type + ".features"]
         if self._config.use_node_tetra_separate_decoders: # Add residual connections for tetrahedra if flag is true
-            batch["tetrahedra.features"] += old_info["tetrahedra.features"]
+            batch["tetrahedra.features"] = batch["tetrahedra.features"] + old_info["tetrahedra.features"]
 
         return batch
