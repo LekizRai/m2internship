@@ -85,6 +85,10 @@ class DGSDataset(Dataset):
                     if config.focused_trajs and not traj in config.focused_trajs:
                         continue
 
+                    if abs(h5file["_1_stacked_forces"][traj, :]) == 0.0:
+                        print(h5file["_1_stacked_object_frame"][traj, ...])
+                        continue
+
                     for frame in range(n_frames): # Iterate over all frames of current trajectory
                         # Continue if focused frame list is empty or current frame exists in it, otherwise ignore
                         if config.focused_frames and not frame in config.focused_frames:
