@@ -140,7 +140,8 @@ class GraphBuildingProcessor(Processor):
             force_per_contact_edge = force / (contact_edges.shape[-2] + 1e-8) # Ensure that there is no divided-by-zero error
             force_features = torch.full(
                 (contact_edges.shape[-2], 1),
-                force_per_contact_edge
+                force_per_contact_edge,
+                device=self._config.device
             )
             print(relative_2nd_frame_disps.device)
             print(torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True).device)
