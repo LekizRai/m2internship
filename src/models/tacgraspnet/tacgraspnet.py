@@ -1,6 +1,4 @@
 import torch
-import os
-import psutil
 
 from torch import nn
 import torch.nn.functional as F
@@ -12,29 +10,6 @@ from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 from commons.datatype import Databatch, NodeType
 from utils.transform import split_two_fingers, kabsch
 
-
-############################## TODO
-def get_complete_memory_string():
-    # --- CPU / System RAM Metrics ---
-    pid = os.getpid()
-    python_process = psutil.Process(pid)
-    # Memory used strictly by this running python script
-    cpu_ram_used = python_process.memory_info().rss / (1024 ** 2)  # Convert to MB
-    # Total overall system RAM utilization percentage
-    system_ram_percent = psutil.virtual_memory().percent
-
-    cpu_string = f"CPU: {cpu_ram_used:.1f}MB ({system_ram_percent}%)"
-
-    # --- GPU VRAM Metrics ---
-    if torch.cuda.is_available():
-        allocated = torch.cuda.memory_allocated() / (1024 ** 2)
-        reserved = torch.cuda.memory_reserved() / (1024 ** 2)
-        gpu_string = f"GPU Alloc: {allocated:.1f}MB | Reserv: {reserved:.1f}MB"
-    else:
-        gpu_string = "GPU: N/A"
-
-    return f"{cpu_string} || {gpu_string}"
-#####################################################################################
 
 class TacGraspNet(nn.Module):
     def __init__(self, config: TacGraspNetConfig):
@@ -131,29 +106,16 @@ class TacGraspNet(nn.Module):
                 ).to(config.device)
 
     def _encode(self, batch: Databatch) -> Databatch:
-        print("init")
-        print(get_complete_memory_string())
         # Encode node features
-        print("node")
-        print(batch["nodes.features"].shape[0])
         batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
-        print(get_complete_memory_string())
 
         # Encode edge features
         for edge_type in self._config.edge_types:
-            print(edge_type)
-            print(batch[edge_type + ".features"].shape[0])
             batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
-            print(get_complete_memory_string())
-            if edge_type == "contact_edges":
-                print(batch["info"])
 
         # Encode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
-            print("tetra")
-            print(batch["tetrahedra.features"].shape[0])
             batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
-            print(get_complete_memory_string())
 
         return batch
 

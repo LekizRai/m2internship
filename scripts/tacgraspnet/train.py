@@ -1,8 +1,6 @@
 import random
 import wandb
 import torch
-import os
-import psutil
 
 from tqdm import tqdm
 from torch.optim import AdamW
@@ -17,29 +15,6 @@ from losses.tacgraspnet.mse import MSE
 from scores.tacgraspnet.r2 import DisplacementR2PerSample, StressR2PerSample
 from scores.tacgraspnet.mae import DisplacementMAE, StressMAE
 
-
-############################## TODO
-def get_complete_memory_string():
-    # --- CPU / System RAM Metrics ---
-    pid = os.getpid()
-    python_process = psutil.Process(pid)
-    # Memory used strictly by this running python script
-    cpu_ram_used = python_process.memory_info().rss / (1024 ** 2)  # Convert to MB
-    # Total overall system RAM utilization percentage
-    system_ram_percent = psutil.virtual_memory().percent
-
-    cpu_string = f"CPU: {cpu_ram_used:.1f}MB ({system_ram_percent}%)"
-
-    # --- GPU VRAM Metrics ---
-    if torch.cuda.is_available():
-        allocated = torch.cuda.memory_allocated() / (1024 ** 2)
-        reserved = torch.cuda.memory_reserved() / (1024 ** 2)
-        gpu_string = f"GPU Alloc: {allocated:.1f}MB | Reserv: {reserved:.1f}MB"
-    else:
-        gpu_string = "GPU: N/A"
-
-    return f"{cpu_string} || {gpu_string}"
-#####################################################################################
 
 def get_data_loaders(model_config: TacGraspNetConfig):
     # Initialize dataset config for train and validation data loader
@@ -154,8 +129,7 @@ def train(model_config: TacGraspNetConfig):
             n_batches = 0.0
 
             # Training model
-            pbar = tqdm(train_loader, mininterval=5.0, leave=False) # TODO
-            for batch in pbar:
+            for batch in tqdm(train_loader, mininterval=5.0, leave=False):
                 # Optimizing model
                 optimizer.zero_grad()
                 batch = preprocessor(batch)
@@ -172,11 +146,6 @@ def train(model_config: TacGraspNetConfig):
 
                 # Update number of batches variable
                 n_batches += 1.0
-
-                # # Cleaning all
-                # del batch, loss
-                # if int(n_batches) % 200 == 0:
-                #     torch.cuda.empty_cache()
 
             # Initialize logs
             logs = {"train/avg_loss": train_loss_sum / n_batches}

@@ -6,12 +6,12 @@ from typing import Dict, Any
 
 # Define Datapoint type representing one data point
 # In the sense of TacGraspNet, it corresponds to a graph
-Datapoint = Dict[str, Any] #TODO
+Datapoint = Dict[str, torch.Tensor]
 
 # Define Databatch type representing one batch of data points
 # In the sense of TacGraspNet, it corresponds to the big graph
 # composed of all graphs (data points)
-Databatch = Dict[str, Any] #TODO
+Databatch = Dict[str, torch.Tensor]
 
 # Define DatapointInfo type representing information of one data point
 DatapointInfo = Dict[str, Any]
