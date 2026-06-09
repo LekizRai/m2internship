@@ -134,20 +134,23 @@ class TacGraspNet(nn.Module):
         print("init")
         print(get_complete_memory_string())
         # Encode node features
-        batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
         print("node")
+        print(batch["nodes.features"].shape[0])
+        batch["nodes.features"] = self._node_encoder(batch["nodes.features"])
         print(get_complete_memory_string())
 
         # Encode edge features
         for edge_type in self._config.edge_types:
-            batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
             print(edge_type)
+            print(batch[edge_type + ".features"].shape[0])
+            batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
             print(get_complete_memory_string())
 
         # Encode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
-            batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
             print("tetra")
+            print(batch["tetrahedra.features"].shape[0])
+            batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
             print(get_complete_memory_string())
 
         return batch
