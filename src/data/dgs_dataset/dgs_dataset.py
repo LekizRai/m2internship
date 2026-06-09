@@ -282,6 +282,8 @@ class DGSDataset(Dataset):
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
+            #TODO
+            "info": datapoint_info,
             # Template (at-rest) data = (Number of all vertices, 3)
             "template.vertices.positions": torch.cat([
                 self._ts_reusable_data["template_verts"],
@@ -391,6 +393,7 @@ class DGSDataset(Dataset):
 
         # Gather all information from all data points together
         batch: Databatch = {
+            "info": datapoints[0]["info"], #TODO
             "template.vertices.positions": torch.cat(vert_template_pos_lst, dim=-2),
             "1st_frame.vertices.positions": torch.cat(vert_1st_frame_pos_lst, dim=-2),
             "2nd_frame.vertices.positions": torch.cat(vert_2nd_frame_pos_lst, dim=-2),

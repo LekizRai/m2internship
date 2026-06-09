@@ -145,6 +145,8 @@ class TacGraspNet(nn.Module):
             print(batch[edge_type + ".features"].shape[0])
             batch[edge_type + ".features"] = self._edge_encoders[edge_type](batch[edge_type + ".features"])
             print(get_complete_memory_string())
+            if edge_type == "contact_edges":
+                print(batch["info"])
 
         # Encode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
