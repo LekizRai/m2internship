@@ -158,11 +158,23 @@ def train(model_config: TacGraspNetConfig):
             for batch in pbar:
                 # Optimizing model
                 optimizer.zero_grad()
+                print("zero_grad")
+                pbar.set_postfix_str(get_complete_memory_string())
                 batch = preprocessor(batch)
+                print("preprocessor")
+                pbar.set_postfix_str(get_complete_memory_string())
                 batch = model(batch)
+                print("model")
+                pbar.set_postfix_str(get_complete_memory_string())
                 loss = loss_fn(batch)
+                print("loss")
+                pbar.set_postfix_str(get_complete_memory_string())
                 loss.backward()
+                print("backward")
+                pbar.set_postfix_str(get_complete_memory_string())
                 optimizer.step()
+                print("step")
+                pbar.set_postfix_str(get_complete_memory_string())
 
                 # Update train loss and score sums
                 with torch.no_grad():
@@ -172,9 +184,6 @@ def train(model_config: TacGraspNetConfig):
 
                 # Update number of batches variable
                 n_batches += 1.0
-
-                if int(n_batches) % 5 == 0: # TODO
-                    pbar.set_postfix_str(get_complete_memory_string())
 
                 # # Cleaning all
                 # del batch, loss
