@@ -85,8 +85,9 @@ class DGSDataset(Dataset):
                     if config.focused_trajs and not traj in config.focused_trajs:
                         continue
 
-                    if abs(h5file["_1_stacked_forces"][traj, :]) == 0.0:
-                        print(h5file["_1_stacked_object_frame"][traj, ...])
+                    # There are some trajectories in some objects which have no data, we must eliminate them
+                    # In such case, every information is filled with zeros. Therefore, we check the force information here
+                    if abs(h5file["_1_stacked_forces"][traj, :].sum().item()) == 0.0:
                         continue
 
                     for frame in range(n_frames): # Iterate over all frames of current trajectory
