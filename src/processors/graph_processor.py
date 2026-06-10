@@ -31,7 +31,7 @@ class GraphBuildingProcessor(Processor):
 
         # Build tetrahedral features
         tetra_features = torch.zeros(batch["tetrahedra"].shape[-2], 1)
-        batch["tetrahedra.features"] = tetra_features.to(self._config.device)
+        batch["tetrahedra.features"] = tetra_features
 
         return batch
 

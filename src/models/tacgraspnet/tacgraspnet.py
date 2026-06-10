@@ -263,10 +263,11 @@ class TacGraspNet(nn.Module):
                     is_training=self._config.is_training
                 )
             if self._config.use_node_tetra_separate_decoders:  # Normalize tetrahedral features if flag is true
-                batch["tetrahedra.features"] = self._tetra_normalizer(
-                    batch["tetrahedra.features"],
-                    is_training=self._config.is_training
-                )
+                pass
+                # batch["tetrahedra.features"] = self._tetra_normalizer(
+                #     batch["tetrahedra.features"],
+                #     is_training=self._config.is_training
+                # )
 
         # Encode
         batch = self._encode(batch)
