@@ -8,7 +8,7 @@ def make_tacgraspnet_processors(config: TacGraspNetConfig) -> tuple[Processor, P
     preprocessor = PipelineProcessor([
         DeviceProcessor(config.device),
         GraphBuildingProcessor(config),
-        DeviceProcessor(config.device),
+        # DeviceProcessor(config.device),
     ])
     postprocessor = PipelineProcessor([])
     return preprocessor, postprocessor
