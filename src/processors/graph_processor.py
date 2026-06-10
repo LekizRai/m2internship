@@ -16,16 +16,19 @@ class GraphBuildingProcessor(Processor):
 
     def __call__(self, batch: Databatch) -> Databatch:
         # Build mesh edges
+        print("abc")
         mesh_edges, mesh_edge_features = self._build_mesh_edges(batch)
         batch["mesh_edges"] = mesh_edges
         batch["mesh_edges.features"] = mesh_edge_features
 
         # Build contact edges (world edges)
+        print("abc")
         contact_edges, contact_edge_features = self._build_contact_edges(batch)
         batch["contact_edges"] = contact_edges
         batch["contact_edges.features"] = contact_edge_features
 
         # Build node features
+        print("abc")
         node_features = self._build_node_features(batch)
         batch["nodes.features"] = node_features
 
@@ -133,7 +136,6 @@ class GraphBuildingProcessor(Processor):
             node_types = batch["nodes.types"][datapoint_indices == idx]
 
             # Construct contact edges from second frame vertice positions
-            print("abc")
             contact_edges = construct_contact_edges(
                 vert_2nd_pos,
                 node_types,
