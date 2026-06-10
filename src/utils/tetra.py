@@ -67,59 +67,29 @@ def compute_vert_to_tetra_relation(
         tetras: torch.Tensor, # Tensor of tetrahedral vertice indices
         return_n_tetras_per_vert: bool = False
 ) -> tuple[torch.Tensor, torch.Tensor]:
-    # # This line is to turn on error message when sparse tensor operations crash
-    # torch.sparse.check_sparse_tensor_invariants.enable()
-    #
-    # i_indices = [] # List of first dimension indices
-    # j_indices = [] # List of second dimension indices
-    # for tetra, tetra_verts in enumerate(tetras):
-    #     i_indices.extend([
-    #             tetra_verts[0].item(),
-    #             tetra_verts[1].item(),
-    #             tetra_verts[2].item(),
-    #             tetra_verts[3].item()
-    #     ]) # Extend first list with indices of tetrahedral vertices
-    #     j_indices.extend([tetra, tetra, tetra, tetra]) # Extend second list with tetrahedral indices
-    # indices = torch.tensor([i_indices, j_indices]) # Combine first and second dimension indices
-    # vert_to_tetra_relation_matrix = torch.sparse_coo_tensor(
-    #     indices, torch.ones(indices.shape[-1])
-    # ).float()
-    #
-    # if return_n_tetras_per_vert: # If return number of tetrahedra corresponding to a vertice
-    #     n_tetras_per_vert = torch.sparse.sum(
-    #         vert_to_tetra_relation_matrix,
-    #         dim=-1
-    #     ).to_dense().float()
-    #     return vert_to_tetra_relation_matrix, n_tetras_per_vert
-    # else: # If do not return number of tetrahedra corresponding to a vertice
-    #     return vert_to_tetra_relation_matrix, torch.empty(0, 1)
-    # 1. Determine dimensions dynamically
-    n_tetras = tetras.shape[0]
-    n_verts = tetras.max().item() + 1  # Find total number of vertices automatically
+    # This line is to turn on error message when sparse tensor operations crash
+    torch.sparse.check_sparse_tensor_invariants.enable()
 
-    # 2. Vectorized construction of COO indices
-    # Row indices (i) are simply the flattened vertex matrix
-    i_indices = tetras.flatten()
-
-    # Column indices (j) repeat the tetrahedron ID 4 times each: [0,0,0,0, 1,1,1,1, ...]
-    j_indices = torch.arange(n_tetras, device=tetras.device).repeat_interleave(4)
-
-    # Stack them to form the (2, N_tetras * 4) index tensor
-    indices = torch.stack([i_indices, j_indices], dim=0)
-
-    # 3. Vectorized construction of values (all ones)
-    values = torch.ones(indices.shape[-1], dtype=torch.float32, device=tetras.device)
-
-    # 4. Construct the sparse COO matrix natively
+    i_indices = [] # List of first dimension indices
+    j_indices = [] # List of second dimension indices
+    for tetra, tetra_verts in enumerate(tetras):
+        i_indices.extend([
+                tetra_verts[0].item(),
+                tetra_verts[1].item(),
+                tetra_verts[2].item(),
+                tetra_verts[3].item()
+        ]) # Extend first list with indices of tetrahedral vertices
+        j_indices.extend([tetra, tetra, tetra, tetra]) # Extend second list with tetrahedral indices
+    indices = torch.tensor([i_indices, j_indices]) # Combine first and second dimension indices
     vert_to_tetra_relation_matrix = torch.sparse_coo_tensor(
-        indices, values, size=(n_verts, n_tetras)
-    )
+        indices, torch.ones(indices.shape[-1])
+    ).float()
 
-    # 5. Compute number of tetrahedra per vertex
-    if return_n_tetras_per_vert:
-        # Instead of a sparse sum -> dense conversion, we can count vertex occurrences natively!
-        # bincount calculates exactly how many times each vertex ID appears in the mesh.
-        n_tetras_per_vert = torch.bincount(i_indices, minlength=n_verts).float()
+    if return_n_tetras_per_vert: # If return number of tetrahedra corresponding to a vertice
+        n_tetras_per_vert = torch.sparse.sum(
+            vert_to_tetra_relation_matrix,
+            dim=-1
+        ).to_dense().float()
         return vert_to_tetra_relation_matrix, n_tetras_per_vert
-    else:
-        return vert_to_tetra_relation_matrix, torch.empty(0, 1, device=tetras.device)
+    else: # If do not return number of tetrahedra corresponding to a vertice
+        return vert_to_tetra_relation_matrix, torch.empty(0, 1)
