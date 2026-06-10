@@ -157,7 +157,7 @@ class GraphBuildingProcessor(Processor):
             force_features = torch.full(
                 (contact_edges.shape[-2], 1),
                 force_per_contact_edge,
-                device="cpu" #TODO: do not need
+                device="cuda" #TODO: do not need
             )
 
             # Build contact edge features
@@ -210,7 +210,7 @@ class GraphBuildingProcessor(Processor):
             # Use repeat instead of tiles for faster memory allocation sequences #TODO
             left_vel = batch["tactile_sensors.normals"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
             right_vel = batch["tactile_sensors.normals"][idx, 1, ...].expand(n_ts_comp_nodes, -1)
-            obj_vel = torch.zeros((n_obj_nodes, 3), dtype=torch.float32)
+            obj_vel = torch.zeros((n_obj_nodes, 3), dtype=torch.float32, device="cuda")
 
             node_velocities.extend([left_vel, right_vel, obj_vel])
 
