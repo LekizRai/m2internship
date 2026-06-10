@@ -141,6 +141,7 @@ def train(model_config: TacGraspNetConfig):
             for batch in tqdm(train_loader, mininterval=5.0, leave=False):
                 # Optimizing model
                 optimizer.zero_grad()
+                print("preprocess")
                 batch = preprocessor(batch)
                 batch = model(batch)
                 loss = loss_fn(batch)
