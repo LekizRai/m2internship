@@ -74,7 +74,7 @@ class GraphNetBlock(nn.Module):
             edge_features = batch[edge_type + ".features"]
             E = edges.shape[-2] # Number of edges
             D_E = edge_features.shape[-1] # Dimension of (encoded) edge feature (= latent dimension in TacGraspNet)
-            aggregated_edge_features = torch.zeros(V, D_E, device=self._config.device) # Initialize with zero tensor
+            aggregated_edge_features = torch.zeros(V, D_E, device="cpu") # Initialize with zero tensor
             aggregated_edge_features.scatter_add_(
                 dim=-2,
                 index=edges[..., 1, None].expand(E, D_E), # Consider only toward edges
