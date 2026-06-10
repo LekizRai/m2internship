@@ -121,9 +121,7 @@ def train(model_config: TacGraspNetConfig):
             score_fns[score_class] = score_class(model_config)
 
         # Training
-        print("epoch")
         for epoch in range(model_config.n_epochs):
-            print(epoch)
             # Initialize model
             model.train()
 
@@ -137,11 +135,9 @@ def train(model_config: TacGraspNetConfig):
             n_batches = 0.0
 
             # Training model
-            print("training")
             for batch in tqdm(train_loader, mininterval=5.0, leave=False):
                 # Optimizing model
                 optimizer.zero_grad()
-                print("preprocess")
                 batch = preprocessor(batch)
                 batch = model(batch)
                 loss = loss_fn(batch)
