@@ -285,7 +285,7 @@ class DGSDataset(Dataset):
         # ) # Compute vertice to tetrahedron relation matrix
         # Directly pull the raw stresses as a continuous NumPy slice first (faster)
         raw_slice = h5file["_1_stacked_stresses"][traj, frame]
-        raw_stresses = torch.from_numpy(raw_slice).float().unsqueeze(-1)
+        raw_stresses = torch.from_numpy(raw_slice).float().unsqueeze(-1).to("cuda")
 
         # A single matrix multiplication now calculates the exact mathematical average instantly!
         ts_vert_stresses = torch.sparse.mm(
