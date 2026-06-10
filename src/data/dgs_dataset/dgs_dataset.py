@@ -4,7 +4,7 @@ import trimesh
 import h5py
 import torch
 
-from typing import List, Dict
+from typing import List, Dict, Any
 from torch.utils.data import Dataset
 
 from commons.datatype import (
@@ -178,36 +178,36 @@ class DGSDataset(Dataset):
         ts_surface_vert_idx = ts_surface_faces.flatten().unique()  # Extract all surface vertice indices
         ts_node_types[ts_surface_vert_idx] = NodeType.SURFACE  # Assign surface node type to them
 
+        # Compute tactile sensor vertice to tetrahedron relation matrix
+        vert_to_tetra_relation, n_tetras_per_vert = compute_vert_to_tetra_relation(
+            tetras=ts_tetras.long(),
+            return_n_tetras_per_vert=True
+        )
+
         # Assign data to dictionary
         self._ts_reusable_data["template_verts"] = ts_template_verts.float()
         self._ts_reusable_data["tetras"] = ts_tetras.long()
         self._ts_reusable_data["node_types"] = ts_node_types.long()
+        self._ts_reusable_data["vert_to_tetra_relation"] = vert_to_tetra_relation
+        self._ts_reusable_data["n_tetras_per_vert"] = n_tetras_per_vert
 
     def _retrieve_datapoint(self, datapoint_info: DatapointInfo) -> Datapoint:
         ########################################
         ## Get data point information
         ########################################
         file = datapoint_info["file"]
-        file = h5py.File(os.path.join(self._config.dgs_output_path, file), "r") # Open .h5 file
         obj = datapoint_info["obj"]
         traj = datapoint_info["traj"]
         frame = datapoint_info["frame"]
-
-        ########################################
-        ## Tactile sensor (ts) data
-        ########################################
-        # Extract vertice positions from first two frames in considering trajectory
-        ts_1st_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 0, ...])
-        ts_2nd_frame_verts = torch.tensor(file["_1_stacked_positions"][traj, 1, ...])
-
-        # Extract vertice positions from current frame in considering trajectory
-        ts_verts = torch.tensor(file["_1_stacked_positions"][traj, frame, ...])
 
         ########################################
         ## (Rigid) object data (not tactile sensor)
         ########################################
         # Compute object data and add them to the dictionary if they have not been collected
         if obj not in self._obj_reusable_data:
+            # Load DGS output file .h5 corresponding to considered object
+            obj_dgs_output_file = h5py.File(os.path.join(self._config.dgs_output_path, file), "r") # Open .h5 file
+
             # Initialize object mesh path and check if file exists, otherwise raise FileNotFound error
             obj_mesh_path = os.path.join(self._config.dgn_dataset_path, obj, f"{obj}_processed.stl")
 
@@ -224,53 +224,67 @@ class DGSDataset(Dataset):
             obj_node_types = torch.full((n_obj_verts,), NodeType.OBJECT) # Will be used as indices
 
             # Assign data to dictionary
-            reusable_data: Dict[str, torch.Tensor] = {
+            reusable_data: Dict[str, Any] = {
+                "dgs_output_file": obj_dgs_output_file,
                 "template_verts": obj_template_verts.float(),
                 "faces": obj_faces.long(),
                 "node_types": obj_node_types.long()
             }
             self._obj_reusable_data[obj] = reusable_data
 
+        # Retrieve opened .h5 file from object reusable data
+        h5file = dict(self._obj_reusable_data[obj]["dgs_output_file"])
+
         # Transform data to align with DGS output dataset
         # Objects corresponding to first two frames (using transformation matrices from first two frames)
         obj_1st_frame_verts = transform(
             self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
-            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 0, ...])
+            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, 0, ...])
         ).T # Transpose again to obtain original shape
         obj_2nd_frame_verts = transform(
             self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
-            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...]) # TODO
+            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, frame, ...]) # TODO
         ).T # Transpose again to obtain original shape
 
         # Objects corresponding to the current frame (using transformation matrix from current frame)
         obj_verts = transform(
             self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
-            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...])
+            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, frame, ...])
         ).T # Transpose again to obtain original shape
+
+        ########################################
+        ## Tactile sensor (ts) data
+        ########################################
+        # Extract vertice positions from first two frames in considering trajectory
+        ts_1st_frame_verts = torch.tensor(h5file["_1_stacked_positions"][traj, 0, ...])
+        ts_2nd_frame_verts = torch.tensor(h5file["_1_stacked_positions"][traj, 1, ...])
+
+        # Extract vertice positions from current frame in considering trajectory
+        ts_verts = torch.tensor(h5file["_1_stacked_positions"][traj, frame, ...])
 
         ########################################
         ## Force data
         ########################################
         # Force here is a scalar, we need to turn it into the 1x1 matrix
-        force = torch.tensor(file["_1_stacked_forces"][traj, frame])[None]
+        force = torch.tensor(h5file["_1_stacked_forces"][traj, frame])[None]
 
         ########################################
         ## Stress data
         ########################################
         # Extract tactile sensor vertice stress values
-        vert_to_tetra_relation, n_tetras_per_vert = compute_vert_to_tetra_relation(
-            tetras=self._ts_reusable_data["tetras"],
-            return_n_tetras_per_vert=True
-        ) # Compute vertice to tetrahedron relation matrix
+        # vert_to_tetra_relation, n_tetras_per_vert = compute_vert_to_tetra_relation(
+        #     tetras=self._ts_reusable_data["tetras"],
+        #     return_n_tetras_per_vert=True
+        # ) # Compute vertice to tetrahedron relation matrix
         ts_vert_stress_sums = torch.sparse.mm(
-            vert_to_tetra_relation,
-            torch.tensor(file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
+            self._ts_reusable_data["vert_to_tetra_relation"],
+            torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
         ) # Compute at each vertice the sum of stresses from surrounding tetrahedra
         # Compute the average stress value at each vertice
-        ts_vert_stresses = torch.div(ts_vert_stress_sums, n_tetras_per_vert.unsqueeze(-1))
+        ts_vert_stresses = torch.div(ts_vert_stress_sums, self._ts_reusable_data["n_tetras_per_vert"].unsqueeze(-1))
 
         # Extract tactile sensor tetrahedral stress values
-        ts_tetras_stresses = torch.tensor(file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
+        ts_tetras_stresses = torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
 
         # Initialize zeros to object vertice stress values
         obj_vert_stresses = torch.zeros(self._obj_reusable_data[obj]["template_verts"].shape[-2], 1)
@@ -279,7 +293,7 @@ class DGSDataset(Dataset):
         ## Normal data (i.e. perpendicular things)
         ########################################
         obj_normal = extract_normal_from_trans_matrix(
-            trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, frame, ...])
+            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, frame, ...])
         )
         ts_normals = torch.stack([-obj_normal, obj_normal]) # Tactile sensor normals (both left and right)
 
@@ -294,7 +308,7 @@ class DGSDataset(Dataset):
                 # TODO
                 transform(
                     self._obj_reusable_data[obj]["template_verts"].T,  # Transpose for proper operation
-                    trans_matrix=torch.tensor(file["_1_stacked_object_frame"][traj, 0, ...])
+                    trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, 0, ...])
                 ).T  # Transpose again to obtain original shape
                 ##############################################################################
                 # self._obj_reusable_data[obj]["template_verts"]
