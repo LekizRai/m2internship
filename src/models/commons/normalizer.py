@@ -18,10 +18,10 @@ class Normalizer(nn.Module):
         self._epsilon = epsilon
 
         # Register variable to store accumulative values
-        self.register_buffer("_acc_sum", torch.zeros(feature_dim).to("cpu")) # Summation of feature vectors
-        self.register_buffer("_acc_sum_squared", torch.zeros(feature_dim).to("cpu")) # Squared summation of feature vectors
-        self.register_buffer("_acc_count", torch.zeros(1).to("cpu")) # Amount of feature vectors
-        self.register_buffer("_n_accumulations", torch.zeros(1).to("cpu")) # Number of accumulations carried out
+        self.register_buffer("_acc_sum", torch.zeros(feature_dim).to("cuda")) # Summation of feature vectors
+        self.register_buffer("_acc_sum_squared", torch.zeros(feature_dim).to("cuda")) # Squared summation of feature vectors
+        self.register_buffer("_acc_count", torch.zeros(1).to("cuda")) # Amount of feature vectors
+        self.register_buffer("_n_accumulations", torch.zeros(1).to("cuda")) # Number of accumulations carried out
 
     def forward(self, feature_batch: torch.Tensor, is_training: bool = False) -> torch.Tensor:
         # Do statistics accumulation only when the model is run.py and number of accumulations does not exceed maximum number
