@@ -184,19 +184,12 @@ class DGSDataset(Dataset):
             return_n_tetras_per_vert=True
         )
 
-        # This creates a row-normalized sparse matrix where entries are 1 / n_tetras_per_vert
-        inv_counts = 1.0 / n_tetras_per_vert.clamp(min=1.0)  # avoid division by zero
-
-        # Use PyTorch's sparse scaling to pre-bake the averaging weights
-        normalized_relation = vert_to_tetra_relation * inv_counts.unsqueeze(-1)
-
         # Assign data to dictionary
         self._ts_reusable_data["template_verts"] = ts_template_verts.float()
         self._ts_reusable_data["tetras"] = ts_tetras.long()
         self._ts_reusable_data["node_types"] = ts_node_types.long()
         self._ts_reusable_data["vert_to_tetra_relation"] = vert_to_tetra_relation
         self._ts_reusable_data["n_tetras_per_vert"] = n_tetras_per_vert
-        self._ts_reusable_data["normalized_relation"] = normalized_relation
 
     def _retrieve_datapoint(self, datapoint_info: DatapointInfo) -> Datapoint:
         ########################################
@@ -283,21 +276,12 @@ class DGSDataset(Dataset):
         #     tetras=self._ts_reusable_data["tetras"],
         #     return_n_tetras_per_vert=True
         # ) # Compute vertice to tetrahedron relation matrix
-        # Directly pull the raw stresses as a continuous NumPy slice first (faster)
-        raw_slice = h5file["_1_stacked_stresses"][traj, frame]
-        raw_stresses = torch.from_numpy(raw_slice).float().unsqueeze(-1)
-
-        # A single matrix multiplication now calculates the exact mathematical average instantly!
-        ts_vert_stresses = torch.sparse.mm(
-            self._ts_reusable_data["normalized_relation"],
-            raw_stresses.to("cuda")
-        ).cpu()
-        # ts_vert_stress_sums = torch.sparse.mm(
-        #     self._ts_reusable_data["vert_to_tetra_relation"],
-        #     torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
-        # ) # Compute at each vertice the sum of stresses from surrounding tetrahedra
-        # # Compute the average stress value at each vertice
-        # ts_vert_stresses = torch.div(ts_vert_stress_sums, self._ts_reusable_data["n_tetras_per_vert"].unsqueeze(-1))
+        ts_vert_stress_sums = torch.sparse.mm(
+            self._ts_reusable_data["vert_to_tetra_relation"],
+            torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
+        ) # Compute at each vertice the sum of stresses from surrounding tetrahedra
+        # Compute the average stress value at each vertice
+        ts_vert_stresses = torch.div(ts_vert_stress_sums, self._ts_reusable_data["n_tetras_per_vert"].unsqueeze(-1))
 
         # Extract tactile sensor tetrahedral stress values
         ts_tetras_stresses = torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)

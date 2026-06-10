@@ -88,11 +88,6 @@ def get_data_loaders(model_config: TacGraspNetConfig):
         return None
 
 def train(model_config: TacGraspNetConfig):
-    try:
-        torch.multiprocessing.set_start_method('spawn', force=True)
-        print(">>> Multiprocessing start method set to 'spawn'")
-    except RuntimeError:
-        pass  # Already set elsewhere
     if model_config.mode == "training":
         print("#" * 15)
         print("Detected device:", model_config.device.upper())
