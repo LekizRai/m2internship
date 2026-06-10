@@ -82,7 +82,7 @@ def compute_vert_to_tetra_relation(
         j_indices.extend([tetra, tetra, tetra, tetra]) # Extend second list with tetrahedral indices
     indices = torch.tensor([i_indices, j_indices]) # Combine first and second dimension indices
     vert_to_tetra_relation_matrix = torch.sparse_coo_tensor(
-        indices, torch.ones(indices.shape[-1])
+        indices, torch.ones(indices.shape[-1]), device="cuda"
     ).float()
 
     if return_n_tetras_per_vert: # If return number of tetrahedra corresponding to a vertice

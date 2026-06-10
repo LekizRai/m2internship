@@ -291,7 +291,7 @@ class DGSDataset(Dataset):
         ts_vert_stresses = torch.sparse.mm(
             self._ts_reusable_data["normalized_relation"],
             raw_stresses
-        )
+        ).cpu()
         # ts_vert_stress_sums = torch.sparse.mm(
         #     self._ts_reusable_data["vert_to_tetra_relation"],
         #     torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
