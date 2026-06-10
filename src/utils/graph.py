@@ -39,8 +39,8 @@ def construct_contact_edges(
     # ], dim=-2)
     #
     # return contact_edges
-    print(verts.device + 1) # TODO
-    print(node_types.device + 0.1 + "a")  # TODO
+    print(verts.device) # TODO
+    print(node_types.device)  # TODO
     # 1. Separate surface vertices and object vertices using masks
     ts_surface_mask = (node_types == NodeType.SURFACE)
     obj_mask = (node_types == NodeType.OBJECT)
