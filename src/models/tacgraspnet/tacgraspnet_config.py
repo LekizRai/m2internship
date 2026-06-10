@@ -15,8 +15,8 @@ class TacGraspNetConfig(Config):
     ########################################
     ## Important flags
     ########################################
-    # Indicate whether the model is run.py or not
-    # It is used mainly for normalizer. Normalization is conducted only during run.py process
+    # Indicate whether the model is training or not
+    # It is used mainly for normalizer. Normalization is conducted only during training process
     is_training: bool = True
 
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not

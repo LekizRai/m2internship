@@ -6,7 +6,7 @@ from processors.device_processor import DeviceProcessor
 
 def make_tacgraspnet_processors(config: TacGraspNetConfig) -> tuple[Processor, Processor]:
     preprocessor = PipelineProcessor([
-        # DeviceProcessor(config.device),
+        DeviceProcessor(config.device),
         GraphBuildingProcessor(config),
         DeviceProcessor(config.device),
     ])
