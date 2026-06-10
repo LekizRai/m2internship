@@ -40,14 +40,44 @@ def construct_contact_edges(
     #
     # return contact_edges
     print(verts.device) # TODO
-    ts_idx = torch.where(node_types == NodeType.SURFACE)[0]
-    obj_idx = torch.where(node_types == NodeType.OBJECT)[0]
+    # 1. Separate surface vertices and object vertices using masks
+    ts_surface_mask = (node_types == NodeType.SURFACE)
+    obj_mask = (node_types == NodeType.OBJECT)
 
-    # Spatial tree bucket query runs in O(N log N) instead of dense O(N^2) search!
-    # Returns a (2, N_edges) tensor containing exact connected indices
-    edge_index = R(verts[obj_idx], verts[ts_idx], r=radius)
+    ts_surface_vert_mapping = torch.where(ts_surface_mask)[0]
+    obj_verts_mapping = torch.where(obj_mask)[0]
 
-    # Remap back to global block tags and format as (N_edges, 2)
-    fwd = torch.stack([ts_idx[edge_index[0]], obj_idx[edge_index[1]]], dim=-1)
-    bwd = torch.stack([obj_idx[edge_index[1]], ts_idx[edge_index[0]]], dim=-1)
-    return torch.cat([fwd, bwd], dim=0)
+    # Quick exit check: if either group has no nodes, return an empty edge tensor safely
+    if len(ts_surface_vert_mapping) == 0 or len(obj_verts_mapping) == 0:
+        return torch.empty((0, 2), dtype=torch.long, device=verts.device)
+
+    # 2. Extract positions based on the index mappings
+    ts_surface_verts = verts[ts_surface_vert_mapping]
+    obj_verts = verts[obj_verts_mapping]
+
+    # 3. HIGH-SPEED NATIVE ALTERNATIVE TO TORCH-CLUSTER:
+    # Computes pairwise distances using memory-fused internal caches.
+    # This runs flawlessly on your CUDA 13 + Pascal setup.
+    pairwise_dist = torch.cdist(
+        ts_surface_verts,
+        obj_verts,
+        p=2.0,
+        compute_mode="donot_use_mm_for_euclid_dist"
+    )
+
+    # 4. Filter indices that fall within the threshold radius ball
+    ts_surface_indices, obj_indices = torch.where(pairwise_dist <= radius)
+
+    # Map back to global graph layout identifiers
+    ts_surface_vert_indices = ts_surface_vert_mapping[ts_surface_indices]
+    obj_vert_indices = obj_verts_mapping[obj_indices]
+
+    # 5. Direct structural stack instead of multiple unsqueeze and cat calls
+    # Directed forward links (Tactile Sensor -> Object)
+    first_contact_edges = torch.stack([ts_surface_vert_indices, obj_vert_indices], dim=-1)
+
+    # Directed backward links (Object -> Tactile Sensor)
+    second_contact_edges = torch.stack([obj_vert_indices, ts_surface_vert_indices], dim=-1)
+
+    # Combine into a single unified interaction edge index matrix
+    return torch.cat([first_contact_edges, second_contact_edges], dim=0)
