@@ -121,7 +121,9 @@ def train(model_config: TacGraspNetConfig):
             score_fns[score_class] = score_class(model_config)
 
         # Training
+        print("epoch")
         for epoch in range(model_config.n_epochs):
+            print(epoch)
             # Initialize model
             model.train()
 
