@@ -39,47 +39,47 @@ class GraphBuildingProcessor(Processor):
         ########################################
         ## Tactile sensor mesh edges
         ########################################
-        # # Build tactile sensor mesh edges
-        # ts_tetras = batch["tetrahedra"]
-        # ts_mesh_edges = []  # Initialize tactile sensor mesh edges
-        #
-        # for ts_tetra in ts_tetras:  # Iterate over all tactile sensor tetrahedra
-        #     for permutation in permutations(ts_tetra,
-        #                                     2):  # Iterate over all size-2 permutations of indices in tetrahedron
-        #         ts_mesh_edges.append(permutation)  # Add to list of tactile sensor mesh edges
-        #
-        # ts_mesh_edges = torch.tensor(ts_mesh_edges).long()  # Long type for indices
-        # ts_mesh_edges = ts_mesh_edges.unique(dim=-2)  # Eliminate duplicate edges
-        ts_tetras = batch["tetrahedra"]  # Shape: (N_tetras, 4) #TODO
+        # Build tactile sensor mesh edges
+        ts_tetras = batch["tetrahedra"]
+        ts_mesh_edges = []  # Initialize tactile sensor mesh edges
 
-        # A tetrahedron has 12 directed permutations of edges:
-        # (0,1), (0,2), (0,3), (1,0), (1,2), (1,3), (2,0), (2,1), (2,3), (3,0), (3,1), (3,2)
-        perm_idx = [0, 1, 0, 2, 0, 3, 1, 0, 1, 2, 1, 3, 2, 0, 2, 1, 2, 3, 3, 0, 3, 1, 3, 2]
-        # Gather all permutation options across all elements instantly
-        ts_all_edges = ts_tetras[:, perm_idx].reshape(-1, 2)
-        # Eliminate duplicates globally in C++
-        ts_mesh_edges = torch.unique(ts_all_edges, dim=0)
+        for ts_tetra in ts_tetras:  # Iterate over all tactile sensor tetrahedra
+            for permutation in permutations(ts_tetra,
+                                            2):  # Iterate over all size-2 permutations of indices in tetrahedron
+                ts_mesh_edges.append(permutation)  # Add to list of tactile sensor mesh edges
+
+        ts_mesh_edges = torch.tensor(ts_mesh_edges).long()  # Long type for indices
+        ts_mesh_edges = ts_mesh_edges.unique(dim=-2)  # Eliminate duplicate edges
+        # ts_tetras = batch["tetrahedra"]  # Shape: (N_tetras, 4) #TODO
+        #
+        # # A tetrahedron has 12 directed permutations of edges:
+        # # (0,1), (0,2), (0,3), (1,0), (1,2), (1,3), (2,0), (2,1), (2,3), (3,0), (3,1), (3,2)
+        # perm_idx = [0, 1, 0, 2, 0, 3, 1, 0, 1, 2, 1, 3, 2, 0, 2, 1, 2, 3, 3, 0, 3, 1, 3, 2]
+        # # Gather all permutation options across all elements instantly
+        # ts_all_edges = ts_tetras[:, perm_idx].reshape(-1, 2)
+        # # Eliminate duplicates globally in C++
+        # ts_mesh_edges = torch.unique(ts_all_edges, dim=0)
 
         ########################################
         ## Object mesh edges
         ########################################
-        # # Build object mesh edges
-        # obj_faces = batch["faces"]
-        # obj_mesh_edges = [] # Initialize object mesh edges
-        #
-        # for obj_face in obj_faces: # Iterate over all object mesh faces
-        #     for permutation in permutations(obj_face, 2): # Iterate over all size-2 permutations of indices in face
-        #         obj_mesh_edges.append(permutation) # Add to list of object mesh edges
-        #
-        # obj_mesh_edges = torch.tensor(obj_mesh_edges).long() # Long type for indices
-        # obj_mesh_edges = obj_mesh_edges.unique(dim=-2) # Eliminate duplicate edges
-        obj_faces = batch["faces"]  # Shape: (N_faces, 3) #TODO
+        # Build object mesh edges
+        obj_faces = batch["faces"]
+        obj_mesh_edges = [] # Initialize object mesh edges
 
-        # A triangle face has 6 directed permutations of edges:
-        # (0,1), (0,2), (1,0), (1,2), (2,0), (2,1)
-        face_perm_idx = [0, 1, 0, 2, 1, 0, 1, 2, 2, 0, 2, 1]
-        obj_all_edges = obj_faces[:, face_perm_idx].reshape(-1, 2)
-        obj_mesh_edges = torch.unique(obj_all_edges, dim=0)
+        for obj_face in obj_faces: # Iterate over all object mesh faces
+            for permutation in permutations(obj_face, 2): # Iterate over all size-2 permutations of indices in face
+                obj_mesh_edges.append(permutation) # Add to list of object mesh edges
+
+        obj_mesh_edges = torch.tensor(obj_mesh_edges).long() # Long type for indices
+        obj_mesh_edges = obj_mesh_edges.unique(dim=-2) # Eliminate duplicate edges
+        # obj_faces = batch["faces"]  # Shape: (N_faces, 3) #TODO
+        #
+        # # A triangle face has 6 directed permutations of edges:
+        # # (0,1), (0,2), (1,0), (1,2), (2,0), (2,1)
+        # face_perm_idx = [0, 1, 0, 2, 1, 0, 1, 2, 2, 0, 2, 1]
+        # obj_all_edges = obj_faces[:, face_perm_idx].reshape(-1, 2)
+        # obj_mesh_edges = torch.unique(obj_all_edges, dim=0)
 
         ########################################
         ## Mesh edge features
@@ -191,28 +191,28 @@ class GraphBuildingProcessor(Processor):
             n_ts_nodes = len(node_types) - n_obj_nodes  # Get number of tactile sensor nodes
             n_ts_comp_nodes = n_ts_nodes // 2  # Get number of each tactile sensor (component) nodes (left and right)
 
-            # ts_left_node_velocities = torch.tile(
-            #     batch["tactile_sensors.normals"][idx, 0, ...],
-            #     (n_ts_comp_nodes, 1)
-            # ) # Set left tactile sensor node velocities as left tactile sensor normal
-            # ts_right_node_velocities = torch.tile(
-            #     batch["tactile_sensors.normals"][idx, 1, ...],
-            #     (n_ts_comp_nodes, 1)
-            # ) # Set right tactile sensor node velocities as right tactile sensor normal
-            # obj_node_velocities = torch.zeros((n_obj_nodes, 3), device="cpu") # Set object node velocities as zeros
-            #
-            # # Add velocities to node velocity list
-            # node_velocities.extend([
-            #     ts_left_node_velocities,
-            #     ts_right_node_velocities,
-            #     obj_node_velocities
-            # ])
-            # Use repeat instead of tiles for faster memory allocation sequences #TODO
-            left_vel = batch["tactile_sensors.normals"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
-            right_vel = batch["tactile_sensors.normals"][idx, 1, ...].expand(n_ts_comp_nodes, -1)
-            obj_vel = torch.zeros((n_obj_nodes, 3), dtype=torch.float32, device="cuda")
+            ts_left_node_velocities = torch.tile(
+                batch["tactile_sensors.normals"][idx, 0, ...],
+                (n_ts_comp_nodes, 1)
+            ) # Set left tactile sensor node velocities as left tactile sensor normal
+            ts_right_node_velocities = torch.tile(
+                batch["tactile_sensors.normals"][idx, 1, ...],
+                (n_ts_comp_nodes, 1)
+            ) # Set right tactile sensor node velocities as right tactile sensor normal
+            obj_node_velocities = torch.zeros((n_obj_nodes, 3), device="cpu") # Set object node velocities as zeros
 
-            node_velocities.extend([left_vel, right_vel, obj_vel])
+            # Add velocities to node velocity list
+            node_velocities.extend([
+                ts_left_node_velocities,
+                ts_right_node_velocities,
+                obj_node_velocities
+            ])
+            # # Use repeat instead of tiles for faster memory allocation sequences #TODO
+            # left_vel = batch["tactile_sensors.normals"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
+            # right_vel = batch["tactile_sensors.normals"][idx, 1, ...].expand(n_ts_comp_nodes, -1)
+            # obj_vel = torch.zeros((n_obj_nodes, 3), dtype=torch.float32, device="cuda")
+            #
+            # node_velocities.extend([left_vel, right_vel, obj_vel])
 
         node_velocities = torch.cat(node_velocities, dim=-2)
 
