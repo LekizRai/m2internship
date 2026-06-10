@@ -1,6 +1,6 @@
 import torch
 
-from torch_cluster import radius as R
+# from torch_cluster import radius as R
 
 from commons.datatype import NodeType
 
