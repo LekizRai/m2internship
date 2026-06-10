@@ -135,11 +135,7 @@ def train(model_config: TacGraspNetConfig):
             n_batches = 0.0
 
             # Training model
-            start = time.perf_counter()
             for batch in tqdm(train_loader, mininterval=5.0, leave=False):
-                end = time.perf_counter()
-                print("Batch preparation time:", end - start)
-                start = time.perf_counter()
                 # Optimizing model
                 optimizer.zero_grad()
                 batch = preprocessor(batch)
@@ -147,8 +143,6 @@ def train(model_config: TacGraspNetConfig):
                 loss = loss_fn(batch)
                 loss.backward()
                 optimizer.step()
-                end = time.perf_counter()
-                print("Processing time:", end - start)
 
                 # Update train loss and score sums
                 with torch.no_grad():
