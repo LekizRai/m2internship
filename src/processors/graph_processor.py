@@ -133,6 +133,7 @@ class GraphBuildingProcessor(Processor):
             node_types = batch["nodes.types"][datapoint_indices == idx]
 
             # Construct contact edges from second frame vertice positions
+            print("abc")
             contact_edges = construct_contact_edges(
                 vert_2nd_pos,
                 node_types,
