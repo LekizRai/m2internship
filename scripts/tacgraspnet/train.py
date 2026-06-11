@@ -122,7 +122,10 @@ def train(model_config: TacGraspNetConfig):
 
         # Training
         for epoch in range(model_config.n_epochs):
-            # Initialize model
+            ########################################
+            ## Train model
+            ########################################
+            # Set model's mode to "train"
             model.train()
 
             # Initialize train loss and score sums
@@ -134,7 +137,7 @@ def train(model_config: TacGraspNetConfig):
             # Number of batches to compute average loss and scores
             n_batches = 0.0
 
-            # Training model
+            # Train
             for batch in tqdm(train_loader, mininterval=5.0, leave=False):
                 # Optimizing model
                 optimizer.zero_grad()
@@ -153,10 +156,40 @@ def train(model_config: TacGraspNetConfig):
                 # Update number of batches variable
                 n_batches += 1.0
 
+            ########################################
+            ## Validate model
+            ########################################
+            # Set model's mode to "train"
+            model.eval()
+
+            # Initialize validation score sums
+            validation_score_sums = {}
+            for score_class in score_classes:
+                validation_score_sums[score_class] = 0.0
+
+            # Number of data points to compute average scores
+            n_data_points = 0.0
+            for data_point in tqdm(validation_loader, mininterval=5.0, leave=False):
+                # Inference
+                data_point = preprocessor(data_point)
+                data_point = model(data_point)
+
+                # Update validation score sums
+                with torch.no_grad():
+                    for score_class in score_classes:
+                        train_score_sums[score_class] += score_fns[score_class](data_point).item()
+
+                # Update number of data points variable
+                n_data_points += 1.0
+
+            ########################################
+            ## Do logging
+            ########################################
             # Initialize logs
             logs = {"train/avg_loss": train_loss_sum / n_batches}
             for score_class in score_classes:
                 logs["train/avg_scores/" + str(score_fns[score_class])] = train_score_sums[score_class] / n_batches
+                logs["validation/avg_scores/" + str(score_fns[score_class])] = validation_score_sums[score_class] / n_batches
 
             # Print epoch and average loss and scores as progress
             print("Epoch:", epoch + 1, "| Average loss:", train_loss_sum / n_batches)
