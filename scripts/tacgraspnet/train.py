@@ -189,10 +189,10 @@ def train(model_config: TacGraspNetConfig):
             logs = {"train/avg_loss": train_loss_sum / n_batches}
             for score_class in score_classes:
                 logs["train/avg_scores/" + str(score_fns[score_class])] = train_score_sums[score_class] / n_batches
-                logs["validation/avg_scores/" + str(score_fns[score_class])] = validation_score_sums[score_class] / n_batches
+                logs["validation/avg_scores/" + str(score_fns[score_class])] = validation_score_sums[score_class] / n_data_points
 
             # Print epoch and average loss and scores as progress
-            print("Epoch:", epoch + 1, "| Average loss:", train_loss_sum / n_batches)
+            print("Epoch:", epoch + 1, "| Average loss:", logs["train/avg_loss"])
 
             # Do logging
             logger.log(logs, step=epoch + 1, commit=True)
