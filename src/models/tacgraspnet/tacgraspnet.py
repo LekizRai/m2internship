@@ -284,3 +284,6 @@ class TacGraspNet(nn.Module):
         batch = self._decode(batch)
 
         return self._update(batch)
+
+    def set_is_training(self, is_training: bool) -> None:
+        self._config.is_training = is_training

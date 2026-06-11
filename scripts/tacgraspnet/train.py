@@ -60,6 +60,9 @@ def get_data_loaders(model_config: TacGraspNetConfig):
 
         ##TODO
         # train_dataset_config.focused_trajs = [0]
+        # train_dataset_config.focused_frames = list(range(25))
+        # validation_dataset_config.focused_trajs = [0]
+        # validation_dataset_config.focused_frames = list(range(25, 50))
         ##
         # Construct train data loader
         train_dataset = DGSDataset(train_dataset_config)  # Construct train dataset
@@ -127,6 +130,7 @@ def train(model_config: TacGraspNetConfig):
             ########################################
             # Set model's mode to "train"
             model.train()
+            model.set_is_training(True) # Set flag to true to wake up normalizers
 
             # Initialize train loss and score sums
             train_loss_sum = 0.0
@@ -161,6 +165,7 @@ def train(model_config: TacGraspNetConfig):
             ########################################
             # Set model's mode to "train"
             model.eval()
+            model.set_is_training(False) # Set flag to false to suspend normalizers
 
             # Initialize validation score sums
             validation_score_sums = {}
@@ -169,15 +174,13 @@ def train(model_config: TacGraspNetConfig):
 
             # Number of data points to compute average scores
             n_data_points = 0.0
-            for data_point in tqdm(validation_loader, mininterval=5.0, leave=False):
-                # Inference
-                data_point = preprocessor(data_point)
-                data_point = model(data_point)
-
+            for data_point in tqdm(validation_loader, mininterval=10.0, leave=False):
                 # Update validation score sums
                 with torch.no_grad():
+                    data_point = preprocessor(data_point)
+                    data_point = model(data_point)
                     for score_class in score_classes:
-                        train_score_sums[score_class] += score_fns[score_class](data_point).item()
+                        validation_score_sums[score_class] += score_fns[score_class](data_point).item()
 
                 # Update number of data points variable
                 n_data_points += 1.0
