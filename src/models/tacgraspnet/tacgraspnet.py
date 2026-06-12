@@ -65,7 +65,7 @@ class TacGraspNet(nn.Module):
             output_dim=config.node_output_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
-            is_hidden_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
+            # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
         ).to(config.device)
 
         # Initialize MLP for tetrahedron decoding
@@ -75,8 +75,8 @@ class TacGraspNet(nn.Module):
                 input_dim=config.latent_dim,
                 output_dim=config.tetra_output_dim,
                 hidden_dims=config.hidden_dims,
-                output_activation=nn.ReLU(),
-                is_hidden_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
+                hidden_activation=nn.ReLU(),
+                # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
             ).to(config.device)
 
         # Initialize normalizers for feature normalization if flag is true
