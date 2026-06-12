@@ -118,7 +118,7 @@ def train(model_config: TacGraspNetConfig):
 
         # Initialize loss and score functions
         loss_fn = MSE(model_config)
-        score_classes = [DisplacementMAE, StressMAE, DisplacementR2PerSample, StressR2PerSample]
+        score_classes = [DisplacementMAE, StressMAE]
         score_fns = {}
         for score_class in score_classes:
             score_fns[score_class] = score_class(model_config)
