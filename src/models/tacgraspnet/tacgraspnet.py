@@ -195,7 +195,8 @@ class TacGraspNet(nn.Module):
             if self._config.use_template_data:
                 pred_ts_pos = (batch["template.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
                                + unnormalized_pred_ts_disps)
-                target_ts_disps = batch["vertices.positions"] - batch["template.vertices.positions"]
+                target_ts_disps = (batch["vertices.positions"]
+                                   - batch["template.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
             else:
                 pred_ts_pos = (batch["2nd_frame.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
                                + unnormalized_pred_ts_disps)

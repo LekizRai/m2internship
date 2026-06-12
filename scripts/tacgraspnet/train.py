@@ -59,9 +59,9 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             validation_dataset_config.focused_trajs = validation_frames
 
         ##TODO
-        # train_dataset_config.focused_trajs = [0]
+        train_dataset_config.focused_trajs = [0]
         # train_dataset_config.focused_frames = list(range(25))
-        # validation_dataset_config.focused_trajs = [0]
+        validation_dataset_config.focused_trajs = [0]
         # validation_dataset_config.focused_frames = list(range(25, 50))
         ##
         # Construct train data loader
