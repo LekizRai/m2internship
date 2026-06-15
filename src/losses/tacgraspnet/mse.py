@@ -42,7 +42,7 @@ class MSE(nn.Module):
         print("Target Stress Min/Max:", target_stresses.min().item(), target_stresses.max().item())
         disp_mse = F.mse_loss(pred_disps, target_disps)
         stress_mse = F.mse_loss(pred_stresses, target_stresses)
-        return disp_mse + 100 * stress_mse
+        return disp_mse + stress_mse
 
     def __str__(self) -> str:
         return "mse"

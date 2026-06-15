@@ -23,7 +23,7 @@ class TacGraspNet(nn.Module):
             output_dim=config.latent_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
-            # is_output_normalized=config.use_final_layer_norm,
+            is_output_normalized=config.use_final_layer_norm,
         ).to(config.device)
 
         # Initialize MLPs for edge feature encoding
@@ -34,7 +34,7 @@ class TacGraspNet(nn.Module):
                 output_dim=config.latent_dim,
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
-                # is_output_normalized=config.use_final_layer_norm,
+                is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
 
         # Initialize MLP for tetrahedral feature encoding
@@ -45,7 +45,7 @@ class TacGraspNet(nn.Module):
                 output_dim=config.latent_dim,
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
-                # is_output_normalized=config.use_final_layer_norm,
+                is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
 
         # Initialization for processing
