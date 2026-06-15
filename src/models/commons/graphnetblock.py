@@ -22,7 +22,7 @@ class GraphNetBlock(nn.Module):
             output_dim=config.latent_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
-            is_output_normalized=config.use_final_layer_norm,
+            # is_output_normalized=config.use_final_layer_norm,
         ).to(config.device)
 
         # Initialize MLPs for all types of edge (mesh, contact, ...) feature updates
@@ -36,7 +36,7 @@ class GraphNetBlock(nn.Module):
                     output_dim=config.latent_dim,
                     hidden_dims=config.hidden_dims,
                     hidden_activation=nn.ReLU(),
-                    is_output_normalized=config.use_final_layer_norm,
+                    # is_output_normalized=config.use_final_layer_norm,
                 ).to(config.device)
         else: # Only one MLP is created for all types of edge feature updates
             edge_mlp = MLP(
@@ -46,7 +46,7 @@ class GraphNetBlock(nn.Module):
                 output_dim=config.latent_dim,
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
-                is_output_normalized=config.use_final_layer_norm,
+                # is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
             for edge_type in config.edge_types:
                 self._edge_mlps[edge_type] = edge_mlp
@@ -61,7 +61,7 @@ class GraphNetBlock(nn.Module):
                 output_dim=config.latent_dim,
                 hidden_dims=config.hidden_dims,
                 hidden_activation=nn.ReLU(),
-                is_output_normalized=config.use_final_layer_norm,
+                # is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
 
     def _update_node_features(self, batch: Dict[str, Any]) -> torch.Tensor:
