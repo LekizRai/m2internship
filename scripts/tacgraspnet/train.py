@@ -59,9 +59,9 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             validation_dataset_config.focused_trajs = validation_frames
 
         ##TODO
-        # train_dataset_config.focused_trajs = [0]
+        train_dataset_config.focused_trajs = [0]
         # train_dataset_config.focused_frames = list(range(25))
-        # validation_dataset_config.focused_trajs = [0]
+        validation_dataset_config.focused_trajs = [0]
         # validation_dataset_config.focused_frames = list(range(25, 50))
         ##
         # Construct train data loader
@@ -123,6 +123,12 @@ def train(model_config: TacGraspNetConfig):
         for score_class in score_classes:
             score_fns[score_class] = score_class(model_config)
 
+        # Accumulate
+        model.set_is_training(True)
+        for batch in tqdm(train_loader, mininterval=5.0, leave=False):
+            batch = preprocessor(batch)
+            model.accumulate(batch)
+
         # Training
         for epoch in range(model_config.n_epochs):
             ########################################
@@ -130,7 +136,8 @@ def train(model_config: TacGraspNetConfig):
             ########################################
             # Set model's mode to "train"
             model.train()
-            model.set_is_training(True) # Set flag to true to wake up normalizers
+            model.set_is_training(False)
+            # model.set_is_training(True) # Set flag to true to wake up normalizers TODO
 
             # Initialize train loss and score sums
             train_loss_sum = 0.0

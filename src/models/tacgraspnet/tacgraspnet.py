@@ -286,5 +286,48 @@ class TacGraspNet(nn.Module):
 
         return self._update(batch)
 
-    def set_is_training(self, is_training: bool) -> None:
+    def accumulate(self, batch: Databatch):
+        if self._config.normalize_features:
+            self._node_normalizer(
+                batch["nodes.features"],
+                is_training=True
+            )
+            for edge_type in self._config.edge_types:
+                self._edge_normalizers[edge_type](
+                    batch[edge_type + ".features"],
+                    is_training=True
+                )
+            if self._config.use_node_tetra_separate_decoders:  # Normalize tetrahedral features if flag is true
+                pass
+                # batch["tetrahedra.features"] = self._tetra_normalizer(
+                #     batch["tetrahedra.features"],
+                #     is_training=self._config.is_training
+                # )
+                # Normalize target outputs if flat is true
+        if self._config.normalize_outputs:
+            if self._config.use_template_data:
+                target_ts_disps = (batch["vertices.positions"]
+                                   - batch["template.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
+            else:
+                target_ts_disps = (batch["vertices.positions"]
+                                   - batch["2nd_frame.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
+            if self._config.use_node_tetra_separate_decoders:  # Normalize both node and tetrahedral outputs if flag is true
+                self._node_output_normalizer(
+                    target_ts_disps,
+                    is_training=True
+                )  # Normalize node outputs (Target displacements)
+                self._tetra_output_normalizer(
+                    batch["tetrahedra.stresses"],
+                    is_training=True
+                )  # Normalize tetrahedral outputs (target stresses)
+            else:  # Normalize only node outputs otherwise
+                self._node_output_normalizer(
+                    torch.cat([
+                        target_ts_disps,
+                        batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+                    ], dim=-1),
+                    is_training=True
+                )  # Normalize node outputs (Target displacements and stresses)
+
+    def set_is_training(self, is_training: bool):
         self._config.is_training = is_training
