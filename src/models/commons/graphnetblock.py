@@ -132,11 +132,11 @@ class GraphNetBlock(nn.Module):
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         # Store old features information which is used for residual connections later
-        old_info = {"nodes.features": batch["nodes.features"].copy()}
+        old_info = {"nodes.features": batch["nodes.features"].clone()}
         for edge_type in self._config.edge_types:
-            old_info[edge_type + ".features"] = batch[edge_type + ".features"].copy()
+            old_info[edge_type + ".features"] = batch[edge_type + ".features"].clone()
         if self._config.use_node_tetra_separate_decoders:
-            old_info["tetrahedra.features"] = batch["tetrahedra.features"].copy()
+            old_info["tetrahedra.features"] = batch["tetrahedra.features"].clone()
 
         # Update edge features
         for edge_type in self._config.edge_types:
