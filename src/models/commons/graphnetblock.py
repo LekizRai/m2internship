@@ -150,7 +150,7 @@ class GraphNetBlock(nn.Module):
         # Update tetrahedral features
         # Update only when flag is true
         if self._config.use_node_tetra_separate_decoders:
-            new_batch["tetrahedra.features"] = self._update_tetra_features(new_batch)
+            new_batch["tetrahedra.features"] = self._update_tetra_features(batch)
 
         # Add residual connections
         new_batch["nodes.features"] = new_batch["nodes.features"] + batch["nodes.features"]
