@@ -24,7 +24,8 @@ def parse_tet_file(path: str) -> Tuple[torch.Tensor, torch.Tensor]:
             if words[0] == "v": # In case line containing vertice information
                 template_verts.append([float(word) for word in words[1:-1]]) # Store vertice position
             elif words[0] == "t": # In case line containing tetrahedral information
-                tetras.append(sorted([int(word) for word in words[1:]])) # Store tetrahedral information
+                # tetras.append(sorted([int(word) for word in words[1:]])) # Store tetrahedral information
+                tetras.append([int(word) for word in words[1:]])  # Store tetrahedral information
 
         # Convert all lists to tensors
         template_verts = torch.tensor(template_verts).float() # Float type for position
