@@ -56,6 +56,9 @@ class TacGraspNet(nn.Module):
                     config=config,
                 ))
         else: # Only one GraphNetBlock is created
+            print("#############")
+            print("Use the same GraphNetBlock")
+            print("#############")
             self._graphnetblock = GraphNetBlock(config=config)
 
         # Initializations for decoding
@@ -278,6 +281,9 @@ class TacGraspNet(nn.Module):
             for graphnetblock in self._graphnetblocks:
                 batch = graphnetblock(batch)
         else:  # The same GraphNetBlock for all message passing steps
+            print("#############")
+            print("Use the same GraphNetBlock")
+            print("#############")
             for _ in range(self._config.message_passing_steps):
                 batch = self._graphnetblock(batch)
 
