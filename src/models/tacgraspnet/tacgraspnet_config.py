@@ -147,16 +147,23 @@ class TacGraspNetConfig(Config):
         # Important flags
         self.is_training = args.mode == "training"
         self.use_template_data = args.use_template_data
+        print(args.use_template_data)
         self.use_final_layer_norm = args.use_final_layer_norm
+        print(args.use_final_layer_norm)
         self.normalize_features = args.normalize_features
+        print(args.normalize_features)
         self.normalize_outputs = args.normalize_outputs
+        print(args.normalize_outputs)
         self.use_node_tetra_separate_decoders = args.use_node_tetra_separate_decoders
+        print(args.use_node_tetra_separate_decoders)
         self.use_separate_edge_mlps = args.use_separate_edge_mlps
+        print(args.use_separate_edge_mlps)
         self.use_message_passing_separate_mlps = args.use_message_passing_separate_mlps
         print("#############")
         print(self.use_message_passing_separate_mlps)
         print("#############")
         self.use_translation_inductive_bias = args.use_translation_inductive_bias
+        print(args.use_translation_inductive_bias)
 
         # Modeling configuration
         # Edge update

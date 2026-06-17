@@ -23,3 +23,13 @@ class NodeType(enum.IntEnum):
     SURFACE = 2  # Surface nodes of tactile sensors
     NUM = 3  # Number of node types
 
+# Universal boolean data type for running arguments
+# Used to convert both strings and boolean values to boolean values
+def universal_bool(v: str | bool) -> bool:
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ("yes", "true", "t", "1", "y"):
+        return True
+    if v.lower() in ("no", "false", "f", "0", "n"):
+        return False
+    raise ValueError('Boolean value are expected (e.g. True, False)')

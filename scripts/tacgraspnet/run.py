@@ -1,6 +1,7 @@
 import torch
 import argparse
 
+from commons.datatype import universal_bool
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 from train import train
@@ -141,28 +142,28 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "-td",
         "--use-template-data",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not",
         default=model_config.use_template_data,
     )
     arg_parser.add_argument(
         "-fln",
         "--use-final-layer-norm",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether layer normalization is used for all MLP final layers (except decoder) or not",
         default=model_config.use_final_layer_norm,
     )
     arg_parser.add_argument(
         "-nf",
         "--normalize_features",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether node and edge features are normalized or not",
         default=model_config.normalize_features,
     )
     arg_parser.add_argument(
         "-no",
         "--normalize_outputs",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether the predicted outputs are normalized or not (for loss calculation). \
               It is also used to indicate whether the layer normalization is used for decoder final layer or not",
         default=model_config.normalize_outputs,
@@ -170,28 +171,28 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "-ntsd",
         "--use_node_tetra_separate_decoders",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether we use two separate or only one (combining) decoder for node and tetrahedral features",
         default=model_config.use_node_tetra_separate_decoders,
     )
     arg_parser.add_argument(
         "-sem",
         "--use_separate_edge_mlps",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether we use separate MLPs for different edge types in message passing or not",
         default=model_config.use_separate_edge_mlps,
     )
     arg_parser.add_argument(
         "-mpsm",
         "--use_message_passing_separate_mlps",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether each message passing step has its own set of MLPs or not",
         default=model_config.use_message_passing_separate_mlps,
     )
     arg_parser.add_argument(
         "-tib",
         "--use_translation_inductive_bias",
-        type=bool,
+        type=universal_bool,
         help="Indicate whether translation inductive bias is used for training and evaluation or not",
         default=model_config.use_translation_inductive_bias,
     )
