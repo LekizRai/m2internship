@@ -28,8 +28,8 @@ class NodeType(enum.IntEnum):
 def universal_bool(v: str | bool) -> bool:
     if isinstance(v, bool):
         return v
-    if v.lower() in ("yes", "true", "t", "1", "y"):
+    if v.lower() in ("true", "yes", "1"):
         return True
-    if v.lower() in ("no", "false", "f", "0", "n"):
+    if v.lower() in ("false", "no", "0"):
         return False
-    raise ValueError('Boolean value are expected (e.g. True, False)')
+    raise ValueError('Boolean value are expected (e.g. true, False, Yes, no, 0, 1)')
