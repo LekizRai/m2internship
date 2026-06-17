@@ -154,6 +154,9 @@ class GraphBuildingProcessor(Processor):
             # Compute force feature for each contact edge at current (considered) data point
             force = batch["forces"][idx].item()
             force_per_contact_edge = force / (contact_edges.shape[-2] + 1e-8) # Ensure that there is no divided-by-zero error
+            print("########### Force ##########s")
+            print(force_per_contact_edge)
+            print("###########")
             force_features = torch.full(
                 (contact_edges.shape[-2], 1),
                 force_per_contact_edge,
