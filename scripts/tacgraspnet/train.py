@@ -34,6 +34,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
         if model_config.data_strategy == "single_obj": # If we train on one single object
             # Construct train data loader
             train_dataset_config.focused_objs = [model_config.objs[0]] # Only consider the first object in the list
+            print(model_config.objs[0])
             train_dataset_config.focused_trajs = train_frames
 
             # Construct validation dataset
