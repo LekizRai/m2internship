@@ -46,6 +46,11 @@ class Normalizer(nn.Module):
 
     def _normalize(self, batch: torch.Tensor) -> torch.Tensor:
         mean, std_dev = self._get_statistics()
+        print("#############")
+        print("Mean:", mean.shape)
+        print("Std dev:", std_dev.shape)
+        print("##############")
+
         return (batch - mean) / std_dev
 
     def _get_statistics(self) -> tuple:
