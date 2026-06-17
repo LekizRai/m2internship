@@ -36,8 +36,8 @@ class Normalizer(nn.Module):
 
     def _accumulate(self, feature_batch: torch.Tensor):
         cur_count = feature_batch.shape[0] # Number of feature vectors in current (considered) feature batch
-        cur_sum = torch.sum(feature_batch, dim=-2) # Summation of all feature vectors in current (considered) feature batch
-        cur_squared_sum = torch.sum(feature_batch ** 2, dim=-2) # Squared summation of all feature vectors in current (considered) feature batch
+        cur_sum = torch.sum(feature_batch, dim=0) # Summation of all feature vectors in current (considered) feature batch
+        cur_squared_sum = torch.sum(feature_batch ** 2, dim=0) # Squared summation of all feature vectors in current (considered) feature batch
 
         self._acc_sum += cur_sum # Update accumulated feature vector summation
         self._acc_sum_squared += cur_squared_sum # Update accumulated feature vector squared summation
