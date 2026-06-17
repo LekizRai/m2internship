@@ -41,8 +41,6 @@ def construct_contact_edges(
     # ], dim=-2)
     #
     # return contact_edges
-    print(verts.device) # TODO
-    print(node_types.device)  # TODO
     # 1. Separate surface vertices and object vertices using boolean masks
     ts_surface_mask = (node_types == NodeType.SURFACE)
     obj_mask = (node_types == NodeType.OBJECT)
@@ -64,7 +62,7 @@ def construct_contact_edges(
     pairwise_dist = torch.cdist(ts_surface_verts, obj_verts, p=2.0)
 
     # 4. Filter indices that fall within the threshold radius ball
-    ts_surface_indices, obj_indices = torch.where(pairwise_dist <= radius)
+    ts_surface_indices, obj_indices = torch.where(pairwise_dist < radius)
 
     # Map back to global graph layout identifiers
     ts_surface_vert_indices = ts_surface_vert_mapping[ts_surface_indices]
@@ -76,6 +74,11 @@ def construct_contact_edges(
 
     # Directed backward links (Object -> Tactile Sensor)
     second_contact_edges = torch.stack([obj_vert_indices, ts_surface_vert_indices], dim=-1)
+
+    print("############## Contact edges")
+    print(first_contact_edges.shape)
+    print(second_contact_edges.shape)
+    print("############## Contact edges")
 
     # Combine into a single unified interaction edge index matrix
     return torch.cat([first_contact_edges, second_contact_edges], dim=0)
