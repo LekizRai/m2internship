@@ -131,7 +131,7 @@ class TacGraspNet(nn.Module):
             batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
 
         print("--- DECODE DIAGNOSTIC ---")
-        print("Output Disps Min/Max:", batch["nodes.outputs"].min().item(), batch["nodes.outputs"].max().item())
+        print("Output Disps Min/Max:", batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].min().item(), batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].max().item())
         print("Output Stress Min/Max:", batch["tetrahedra.outputs"].min().item(), batch["tetrahedra.outputs"].max().item())
 
         return batch
