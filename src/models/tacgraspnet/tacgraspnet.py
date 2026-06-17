@@ -128,7 +128,7 @@ class TacGraspNet(nn.Module):
 
         # Decode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
-            batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
+            batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"] * 100)
 
         print("--- DECODE DIAGNOSTIC ---")
         print("Output Disps Min/Max:", batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].min().item(), batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].max().item())
