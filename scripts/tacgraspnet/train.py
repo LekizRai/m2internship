@@ -115,6 +115,9 @@ def train(model_config: TacGraspNetConfig):
         preprocessor, postprocessor = make_tacgraspnet_processors(model_config)
 
         # Initialize optimizer
+        print("##############")
+        print("Adam")
+        print("##############")
         optimizer = Adam(params=model.parameters(), **model_config.optimizer_params)
 
         # Initialize loss and score functions
