@@ -27,7 +27,7 @@ class TacGraspNet(nn.Module):
         ).to(config.device)
 
         # Initialize MLPs for edge feature encoding
-        self._edge_encoders = {}
+        self._edge_encoders = nn.ModuleDict()
         for edge_type in config.edge_types:
             self._edge_encoders[edge_type] = MLP(
                 input_dim=config.edge_feature_dims[edge_type],
@@ -50,7 +50,7 @@ class TacGraspNet(nn.Module):
 
         # Initialization for processing
         if config.use_message_passing_separate_mlps: # Multiple (separate) GraphNetBlocks are created
-            self._graphnetblocks = []
+            self._graphnetblocks = nn.ModuleDict()
             for _ in range(self._config.message_passing_steps):
                 self._graphnetblocks.append(GraphNetBlock(
                     config=config,

@@ -26,7 +26,7 @@ class GraphNetBlock(nn.Module):
         ).to(config.device)
 
         # Initialize MLPs for all types of edge (mesh, contact, ...) feature updates
-        self._edge_mlps = {}
+        self._edge_mlps = nn.ModuleDict()
         if config.use_separate_edge_mlps: # Separate MLPs are created for different types of edge feature updates
             for edge_type in config.edge_types:
                 self._edge_mlps[edge_type] = MLP(
