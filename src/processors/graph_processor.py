@@ -108,10 +108,10 @@ class GraphBuildingProcessor(Processor):
             relative_2nd_frame_disps = (batch["2nd_frame.vertices.positions"][receivers]
                                         - batch["2nd_frame.vertices.positions"][senders])
             mesh_edge_features = torch.cat([
+                relative_2nd_frame_disps,  # Second frame relative displacements
+                torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True),  # Second frame relative displacement norms
                 relative_1st_frame_disps,  # First frame relative displacements
                 torch.norm(relative_1st_frame_disps, dim=-1, keepdim=True),  # First frame relative displacement norms
-                relative_2nd_frame_disps,  # First frame relative displacements
-                torch.norm(relative_2nd_frame_disps, dim=-1, keepdim=True)  # First frame relative displacement norms
             ], dim=-1)  # Build mesh edge features
 
         return mesh_edges, mesh_edge_features
@@ -153,7 +153,7 @@ class GraphBuildingProcessor(Processor):
 
             # Compute force feature for each contact edge at current (considered) data point
             force = batch["forces"][idx].item()
-            force_per_contact_edge = force / (contact_edges.shape[-2] + 1e-8) # Ensure that there is no divided-by-zero error
+            force_per_contact_edge = force / (contact_edges.shape[-2] / 2 + 1e-8) # Ensure that there is no divided-by-zero error
             print("########### Force ##########s")
             print(force_per_contact_edge)
             print("###########")

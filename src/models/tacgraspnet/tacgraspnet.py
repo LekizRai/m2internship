@@ -314,10 +314,10 @@ class TacGraspNet(nn.Module):
         if self._config.normalize_outputs:
             if self._config.use_template_data:
                 target_ts_disps = (batch["vertices.positions"]
-                                   - batch["template.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
+                                   - batch["template.vertices.positions"])
             else:
                 target_ts_disps = (batch["vertices.positions"]
-                                   - batch["2nd_frame.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
+                                   - batch["2nd_frame.vertices.positions"])
             if self._config.use_node_tetra_separate_decoders:  # Normalize both node and tetrahedral outputs if flag is true
                 self._node_output_normalizer(
                     target_ts_disps,
@@ -331,7 +331,7 @@ class TacGraspNet(nn.Module):
                 self._node_output_normalizer(
                     torch.cat([
                         target_ts_disps,
-                        batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
+                        batch["vertices.stresses"]
                     ], dim=-1),
                     is_training=True
                 )  # Normalize node outputs (Target displacements and stresses)

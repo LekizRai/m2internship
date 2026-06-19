@@ -70,7 +70,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
         train_loader = DataLoader(
             train_dataset,
             batch_size=model_config.batch_size,
-            shuffle=True,
+            shuffle=False,
             collate_fn=DGSDataset.collate,
             num_workers=4,
             pin_memory=True,
@@ -104,8 +104,8 @@ def train(model_config: TacGraspNetConfig):
         # Initialize logging
         logger = wandb.init(
             project="TacGraspNet",
-            name=f"train_{model_config.args.data_strategy}_{datetime.now().strftime('%m%d_%H%M')}",
-            config=model_config.args.__dict__,
+            name=f"train_{model_config.data_strategy}_{datetime.now().strftime('%m%d_%H%M')}",
+            config = model_config.__dict__,
         )
 
         # Initialize model
@@ -129,6 +129,11 @@ def train(model_config: TacGraspNetConfig):
         for batch in tqdm(train_loader, mininterval=5.0, leave=False):
             batch = preprocessor(batch)
             model.accumulate(batch)
+        node_output = model._node_output_normalizer._get_statistics()
+        tet_output = model._tetra_output_normalizer._get_statistics()
+        mesh = model._edge_normalizers["mesh_edges"]._get_statistics()
+        contact = model._edge_normalizers["contact_edges"]._get_statistics()
+        node = model._node_normalizer._get_statistics()
 
         # Training
         for epoch in range(model_config.n_epochs):
@@ -155,6 +160,7 @@ def train(model_config: TacGraspNetConfig):
                 optimizer.zero_grad()
                 batch = preprocessor(batch)
                 batch = model(batch)
+                extra_tet_output = model._tetra_output_normalizer._get_statistics()
                 loss = loss_fn(batch)
                 loss.backward()
                 optimizer.step()
@@ -211,3 +217,8 @@ def train(model_config: TacGraspNetConfig):
         return None
     else:
         return None
+
+
+if __name__ == "__main__":
+    config = TacGraspNetConfig()
+    train(config)

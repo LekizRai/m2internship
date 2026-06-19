@@ -87,7 +87,7 @@ def test_graph_processor_with_dgs_dataset():
     data_loader = DataLoader(
         dataset,
         batch_size=model_config.batch_size,
-        shuffle=True,
+        shuffle=False,
         collate_fn=dataset.collate
     )
 

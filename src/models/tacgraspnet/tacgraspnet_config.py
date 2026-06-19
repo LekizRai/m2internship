@@ -23,7 +23,7 @@ class TacGraspNetConfig(Config):
     use_template_data: bool = False
 
     # Indicate whether layer normalization is used for all MLP final layers (except decoder) or not
-    use_final_layer_norm: bool = True
+    use_final_layer_norm: bool = False
 
     # Indicate whether node and edge features are normalized or not
     normalize_features: bool = True
@@ -36,11 +36,11 @@ class TacGraspNetConfig(Config):
     use_node_tetra_separate_decoders: bool = True
 
     # Indicate whether we use separate MLPs for different edge types in message passing or not
-    use_separate_edge_mlps: bool = True
+    use_separate_edge_mlps: bool = False
 
     # Indicate whether each message passing step has its own set of MLPs or not
     # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
-    use_message_passing_separate_mlps: bool = True
+    use_message_passing_separate_mlps: bool = False
 
     # Indicate whether translation inductive bias is used for training and evaluation or not
     use_translation_inductive_bias: bool = False
@@ -114,7 +114,7 @@ class TacGraspNetConfig(Config):
     batch_size: int = 1
 
     # Number of epochs
-    n_epochs: int = 40
+    n_epochs: int = 20
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {
@@ -131,10 +131,10 @@ class TacGraspNetConfig(Config):
     data_strategy: str = "single_obj"
 
     # Focused objects (for training or evaluation)
-    objs: List[str] = field(default_factory=lambda: ["sphere01"])
+    objs: List[str] = field(default_factory=lambda: ["potato1"])
 
     # Validation objects (only for training with multiple objects)
-    validation_objs: List[str] = field(default_factory=lambda: ["sphere01"])
+    validation_objs: List[str] = field(default_factory=lambda: ["potato1"])
 
     # This attribute is used to store arguments from keyboard
     # Initialize it as dictionary
