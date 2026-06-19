@@ -5,7 +5,7 @@ import torch
 
 from tqdm import tqdm
 from datetime import datetime
-from torch.optim import AdamW
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
@@ -115,7 +115,7 @@ def train(model_config: TacGraspNetConfig):
         preprocessor, postprocessor = make_tacgraspnet_processors(model_config)
 
         # Initialize optimizer
-        optimizer = AdamW(model.parameters(), **model_config.optimizer_params)
+        optimizer = Adam(params=model.parameters(), **model_config.optimizer_params)
 
         # Initialize loss and score functions
         loss_fn = MSE(model_config)

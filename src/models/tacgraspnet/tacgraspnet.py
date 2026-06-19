@@ -53,7 +53,7 @@ class TacGraspNet(nn.Module):
 
         # Initialization for processing
         if config.use_message_passing_separate_mlps: # Multiple (separate) GraphNetBlocks are created
-            self._graphnetblocks = nn.ModuleDict()
+            self._graphnetblocks = nn.ModuleList()
             for _ in range(self._config.message_passing_steps):
                 self._graphnetblocks.append(GraphNetBlock(
                     config=config,
