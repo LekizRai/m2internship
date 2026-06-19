@@ -27,6 +27,9 @@ class TacGraspNet(nn.Module):
         ).to(config.device)
 
         # Initialize MLPs for edge feature encoding
+        print("#############")
+        print("Use ModuleDict")
+        print("#############")
         self._edge_encoders = nn.ModuleDict()
         for edge_type in config.edge_types:
             self._edge_encoders[edge_type] = MLP(
