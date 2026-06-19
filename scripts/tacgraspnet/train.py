@@ -98,6 +98,9 @@ def train(model_config: TacGraspNetConfig):
         print("Training on:", "GPU" if torch.cuda.is_available() else "CPU")
         print("#" * 15)
 
+        # Set random seed for PyTorch
+        torch.random.manual_seed(42)
+
         # Construct data loaders
         train_loader, validation_loader = get_data_loaders(model_config)
 
@@ -119,6 +122,36 @@ def train(model_config: TacGraspNetConfig):
         print("Adam")
         print("##############")
         optimizer = Adam(params=model.parameters(), **model_config.optimizer_params)
+
+        # --- DIAGNOSTIC BLOCK: VERIFY OPTIMIZER REGISTRATION ---
+        print("\n" + "=" * 40)
+        print("🔍 PARAMETER REGISTRATION CHECK")
+        print("=" * 40)
+
+        # 1. Check if the model registered the layers properly
+        print("\n--- Trainable Layers in Model ---")
+        registered_names = []
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                registered_names.append(name)
+                # Print a few key names to verify ModuleDicts/Lists
+                if "edge" in name or "graphnet" in name:
+                    print(f"Registered: {name} | Shape: {param.shape}")
+
+        # 2. Check if the optimizer caught all of them
+        model_param_count = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        optimizer_param_count = sum(p.numel() for group in optimizer.param_groups for p in group['params'])
+
+        print("\n--- Parameter Count Verification ---")
+        print(f"Total Learnable Params in Model:     {model_param_count:,}")
+        print(f"Total Params Tracked by Optimizer:   {optimizer_param_count:,}")
+
+        if model_param_count == optimizer_param_count:
+            print("✅ SUCCESS: Optimizer is tracking all model parameters!")
+        else:
+            print("❌ DANGER: Optimizer is missing parameters. Re-check ModuleDicts.")
+        print("=" * 40 + "\n")
+        # -------------------------------------------------------
 
         # Initialize loss and score functions
         loss_fn = MSE(model_config)
