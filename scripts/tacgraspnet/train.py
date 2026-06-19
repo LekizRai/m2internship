@@ -162,7 +162,7 @@ def train(model_config: TacGraspNetConfig):
 
         # Accumulate
         model.set_is_training(True)
-        for batch in tqdm(train_loader, mininterval=5.0, leave=False):
+        for batch in tqdm(train_loader, desc="Collecting normalization data", mininterval=5.0):
             batch = preprocessor(batch)
             model.accumulate(batch)
         node_output = model._node_output_normalizer._get_statistics()
@@ -191,7 +191,7 @@ def train(model_config: TacGraspNetConfig):
             n_batches = 0.0
 
             # Train
-            for batch in tqdm(train_loader, mininterval=5.0):
+            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
                 # Optimizing model
                 optimizer.zero_grad()
                 batch = preprocessor(batch)
@@ -224,7 +224,7 @@ def train(model_config: TacGraspNetConfig):
 
             # Number of data points to compute average scores
             n_data_points = 0.0
-            for data_point in tqdm(validation_loader, mininterval=10.0, leave=False):
+            for data_point in tqdm(validation_loader, desc=f"Epoch {epoch} validation", mininterval=5.0):
                 # Update validation score sums
                 with torch.no_grad():
                     data_point = preprocessor(data_point)
