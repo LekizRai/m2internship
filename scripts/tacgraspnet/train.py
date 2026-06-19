@@ -70,7 +70,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
         train_loader = DataLoader(
             train_dataset,
             batch_size=model_config.batch_size,
-            shuffle=False,
+            shuffle=True,
             collate_fn=DGSDataset.collate,
             num_workers=4,
             pin_memory=True,
