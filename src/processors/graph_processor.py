@@ -94,7 +94,7 @@ class GraphBuildingProcessor(Processor):
         # Compute mesh edge features
         if self._config.use_template_data: # Use template data if flag is true
             # Compute template relative displacement for each mesh edge
-            relative_template_disps = (batch["template.vertices.positions"][receivers]
+            relative_template_disps = -(batch["template.vertices.positions"][receivers]
                                        - batch["template.vertices.positions"][senders])
             mesh_edge_features = torch.cat([
                 relative_template_disps, # Relative displacements
@@ -102,10 +102,10 @@ class GraphBuildingProcessor(Processor):
             ], dim=-1) # Build mesh edge features
         else: # Otherwise, use first and second frame data
             # Compute first frame relative displacement for each mesh edge
-            relative_1st_frame_disps = (batch["1st_frame.vertices.positions"][receivers]
+            relative_1st_frame_disps = -(batch["1st_frame.vertices.positions"][receivers]
                                        - batch["1st_frame.vertices.positions"][senders])
             # Compute second frame relative displacement for each mesh edge
-            relative_2nd_frame_disps = (batch["2nd_frame.vertices.positions"][receivers]
+            relative_2nd_frame_disps = -(batch["2nd_frame.vertices.positions"][receivers]
                                         - batch["2nd_frame.vertices.positions"][senders])
             mesh_edge_features = torch.cat([
                 relative_2nd_frame_disps,  # Second frame relative displacements
@@ -148,7 +148,7 @@ class GraphBuildingProcessor(Processor):
             receivers = contact_edges[..., 1]  # Get contact edge receiver indices
             # TODO
             # Compute relative displacement for each contact edge at second frame
-            relative_2nd_frame_disps = (batch["2nd_frame.vertices.positions"][receivers]
+            relative_2nd_frame_disps = -(batch["2nd_frame.vertices.positions"][receivers]
                                         - batch["2nd_frame.vertices.positions"][senders])
 
             # Compute force feature for each contact edge at current (considered) data point
