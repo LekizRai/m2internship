@@ -131,33 +131,32 @@ class GraphNetBlock(nn.Module):
     #     return batch["globa_node.features"]
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
-        # Store old features information which is used for residual connections later
         # Create a new batch for store updated information
-        new_batch = batch.copy()
-        # old_info = {"nodes.features": batch["nodes.features"].clone()}
-        # for edge_type in self._config.edge_types:
-        #     old_info[edge_type + ".features"] = batch[edge_type + ".features"].clone()
-        # if self._config.use_node_tetra_separate_decoders:
-        #     old_info["tetrahedra.features"] = batch["tetrahedra.features"].clone()
+        # new_batch = batch.copy()
+        # Store old features information which is used for residual connections later
+        old_info = {"nodes.features": batch["nodes.features"].clone()}
+        for edge_type in self._config.edge_types:
+            old_info[edge_type + ".features"] = batch[edge_type + ".features"].clone()
+        if self._config.use_node_tetra_separate_decoders:
+            old_info["tetrahedra.features"] = batch["tetrahedra.features"].clone()
 
         # Update edge features
         for edge_type in self._config.edge_types:
-            new_batch[edge_type + ".features"] = self._update_edge_features(edge_type, batch)
+            batch[edge_type + ".features"] = self._update_edge_features(edge_type, batch)
 
         # Update node features
-        new_batch["nodes.features"] = self._update_node_features(batch)
+        batch["nodes.features"] = self._update_node_features(batch)
 
         # Update tetrahedral features
         # Update only when flag is true
-        # if self._config.use_node_tetra_separate_decoders:
-        #     new_batch["tetrahedra.features"] = self._update_tetra_features(new_batch)
+        if self._config.use_node_tetra_separate_decoders:
+            batch["tetrahedra.features"] = self._update_tetra_features(batch)
 
         # Add residual connections
-        new_batch["nodes.features"] = new_batch["nodes.features"] + batch["nodes.features"]
+        batch["nodes.features"] = batch["nodes.features"] + old_info["nodes.features"]
         for edge_type in self._config.edge_types:
-            new_batch[edge_type + ".features"] = new_batch[edge_type + ".features"] + batch[edge_type + ".features"]
+            batch[edge_type + ".features"] = batch[edge_type + ".features"] + old_info[edge_type + ".features"]
         if self._config.use_node_tetra_separate_decoders: # Add residual connections for tetrahedra if flag is true
-            new_batch["tetrahedra.features"] = self._update_tetra_features(new_batch)
-            new_batch["tetrahedra.features"] = new_batch["tetrahedra.features"] + batch["tetrahedra.features"]
+            batch["tetrahedra.features"] = batch["tetrahedra.features"] + old_info["tetrahedra.features"]
 
-        return new_batch
+        return batch

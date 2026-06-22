@@ -81,7 +81,7 @@ def get_data_loaders(model_config: TacGraspNetConfig):
         validation_loader = DataLoader(
             validation_dataset,
             batch_size=1,
-            shuffle=False,
+            shuffle=True,
             collate_fn=DGSDataset.collate,
             num_workers=4,
             pin_memory=True,
@@ -194,10 +194,10 @@ def train(model_config: TacGraspNetConfig):
             for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
                 # Optimizing model
                 optimizer.zero_grad()
-                batch = preprocessor(batch)
-                batch = model(batch)
+                preprocessed_batch = preprocessor(batch)
+                prediction = model(preprocessed_batch)
                 extra_tet_output = model._tetra_output_normalizer._get_statistics()
-                loss = loss_fn(batch)
+                loss = loss_fn(prediction)
                 loss.backward()
                 optimizer.step()
 
@@ -217,7 +217,8 @@ def train(model_config: TacGraspNetConfig):
             model.eval()
             model.set_is_training(False) # Set flag to false to suspend normalizers
 
-            # Initialize validation score sums
+            # Initialize validation loss and score sums
+            validation_loss_sum = 0.0
             validation_score_sums = {}
             for score_class in score_classes:
                 validation_score_sums[score_class] = 0.0
@@ -227,10 +228,12 @@ def train(model_config: TacGraspNetConfig):
             for data_point in tqdm(validation_loader, desc=f"Epoch {epoch} validation", mininterval=5.0):
                 # Update validation score sums
                 with torch.no_grad():
-                    data_point = preprocessor(data_point)
-                    data_point = model(data_point)
+                    preprocessed_data_point = preprocessor(data_point)
+                    prediction = model(preprocessed_data_point)
+                    loss = loss_fn(prediction)
+                    validation_loss_sum += loss.item()
                     for score_class in score_classes:
-                        validation_score_sums[score_class] += score_fns[score_class](data_point).item()
+                        validation_score_sums[score_class] += score_fns[score_class](prediction).item()
 
                 # Update number of data points variable
                 n_data_points += 1.0
@@ -240,6 +243,7 @@ def train(model_config: TacGraspNetConfig):
             ########################################
             # Initialize logs
             logs = {"train/avg_loss": train_loss_sum / n_batches}
+            logs = {"validation/avg_loss": validation_loss_sum / n_data_points}
             for score_class in score_classes:
                 logs["train/avg_scores/" + str(score_fns[score_class])] = train_score_sums[score_class] / n_batches
                 logs["validation/avg_scores/" + str(score_fns[score_class])] = validation_score_sums[score_class] / n_data_points
