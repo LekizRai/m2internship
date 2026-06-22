@@ -242,8 +242,10 @@ def train(model_config: TacGraspNetConfig):
             ## Do logging
             ########################################
             # Initialize logs
-            logs = {"train/avg_loss": train_loss_sum / n_batches}
-            logs = {"validation/avg_loss": validation_loss_sum / n_data_points}
+            logs = {
+                "train/avg_loss": train_loss_sum / n_batches,
+                "validation/avg_loss": validation_loss_sum / n_data_points
+            }
             for score_class in score_classes:
                 logs["train/avg_scores/" + str(score_fns[score_class])] = train_score_sums[score_class] / n_batches
                 logs["validation/avg_scores/" + str(score_fns[score_class])] = validation_score_sums[score_class] / n_data_points
