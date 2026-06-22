@@ -90,6 +90,20 @@ class DGSDataset(Dataset):
                     if abs(h5file["_1_stacked_forces"][traj, :].sum().item()) == 0.0:
                         continue
 
+                    # --- ADD THE OUTLIER FILTER HERE ---
+                    first_pos = h5file["_1_stacked_positions"][traj, 0, :]
+                    force_pos = h5file["_1_stacked_positions"][traj, 49, :]
+
+                    # Compute movement between first and last frame
+                    traj_movement = torch.norm(torch.tensor(force_pos) - torch.tensor(first_pos), dim=-1)
+                    min_traj_movement = torch.min(traj_movement).item()
+                    max_traj_movement = torch.max(traj_movement).item()
+
+                    # Skip broken or frozen simulations
+                    if min_traj_movement > 0.003 or max_traj_movement > 0.03:
+                        continue
+                    # -----------------------------------
+
                     for frame in range(n_frames): # Iterate over all frames of current trajectory
                         # Continue if focused frame list is empty or current frame exists in it, otherwise ignore
                         if config.focused_frames and not frame in config.focused_frames:

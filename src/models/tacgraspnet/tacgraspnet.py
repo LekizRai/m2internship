@@ -242,7 +242,7 @@ class TacGraspNet(nn.Module):
                 batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
             ], dim=-1)
 
-        # Normalize target outputs if flat is true
+        # Normalize target outputs if flag is true
         if self._config.normalize_outputs:
             if self._config.use_node_tetra_separate_decoders:  # Normalize both node and tetrahedral outputs if flag is true
                 batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
