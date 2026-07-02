@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     # Batch size
     arg_parser.add_argument(
-        "-b",
+        "-bs",
         "--batch_size",
         type=int,
         help="Batch size for training",

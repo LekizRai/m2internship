@@ -43,10 +43,10 @@ class TacGraspNetConfig(Config):
     use_message_passing_separate_mlps: bool = False
 
     # Indicate whether the global node is used or not
-    use_global_node: bool = True
+    use_global_node: bool = False
 
     # Indicate whether translation inductive bias is used for training and evaluation or not
-    use_translation_inductive_bias: bool = True
+    use_translation_inductive_bias: bool = False
 
     ########################################
     ## Modeling configuration
