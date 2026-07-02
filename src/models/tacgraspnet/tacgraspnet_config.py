@@ -157,6 +157,7 @@ class TacGraspNetConfig(Config):
         self.use_node_tetra_separate_decoders = args.use_node_tetra_separate_decoders
         self.use_separate_edge_mlps = args.use_separate_edge_mlps
         self.use_message_passing_separate_mlps = args.use_message_passing_separate_mlps
+        self.use_global_node = args.use_global_node
         self.use_translation_inductive_bias = args.use_translation_inductive_bias
 
         # Modeling configuration
