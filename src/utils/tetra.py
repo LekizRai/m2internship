@@ -2,7 +2,6 @@ import os
 import torch
 
 from typing import Tuple
-from itertools import combinations
 
 
 def parse_tet_file(path: str) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -12,7 +11,6 @@ def parse_tet_file(path: str) -> Tuple[torch.Tensor, torch.Tensor]:
 
     with open(path, "r") as file: # Open .tet file
         template_verts = [] # Initialize list of at-rest vertices
-        faces = [] # Initialize list of faces
         tetras = [] # Initialize list of tetrahedra
 
         while True: # Start parsing
@@ -31,8 +29,9 @@ def parse_tet_file(path: str) -> Tuple[torch.Tensor, torch.Tensor]:
         template_verts = torch.tensor(template_verts).float() # Float type for position
         tetras = torch.tensor(tetras).long() # Long type for indexing
 
-        # Eliminate duplicate tetrahedra
-        tetras = tetras.unique(dim=-2)
+        # We do not need to eliminate duplicate tetrahedra and should not do it using torch.unique. This will cause
+        # incompatibility between tetrahedra order and stress values due to sorting of tetrahedra
+        # Do not include this: tetras = tetras.unique(dim=-2)
 
         return template_verts, tetras
 

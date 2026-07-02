@@ -23,7 +23,8 @@ from utils.transform import (
     do_translation,
     do_scale,
     transform,
-    extract_normal_from_trans_matrix
+    extract_normal_from_trans_matrix,
+    pointcloud_tf_feature
 )
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
@@ -312,6 +313,20 @@ class DGSDataset(Dataset):
         ts_normals = torch.stack([-obj_normal, obj_normal]) # Tactile sensor normals (both left and right)
 
         ########################################
+        ## Rigid transformation data
+        ########################################
+        # Compute 9D transformations which give the best fits between point clouds of
+        # tactile sensors of template (or corresponding to second frame) and current frame
+        rigid_transformation_template = pointcloud_tf_feature(
+            self._ts_reusable_data["template_verts"],
+            ts_verts
+        )
+        rigid_transformation_2nd_frame = pointcloud_tf_feature(
+            ts_2nd_frame_verts,
+            ts_verts
+        )
+
+        ########################################
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
@@ -327,6 +342,7 @@ class DGSDataset(Dataset):
                 ##############################################################################
                 # self._obj_reusable_data[obj]["template_verts"]
             ], dim=-2),
+            "template.rigid_transformation": rigid_transformation_template.float(),
 
             # First frame = (Number of all vertices, 3)
             "1st_frame.vertices.positions": torch.cat([
@@ -339,6 +355,7 @@ class DGSDataset(Dataset):
                 ts_2nd_frame_verts,
                 obj_2nd_frame_verts
             ], dim=-2).float(),
+            "2nd_frame.rigid_transformation": rigid_transformation_2nd_frame.float(),
 
             # Force = (1)
             "forces": force.float(), # Key in plural form for data batch later
@@ -364,7 +381,7 @@ class DGSDataset(Dataset):
             # Tetrahedron stresses = (Number of all (tactile sensor) tetrahedra, 1)
             "tetrahedra.stresses": ts_tetras_stresses.float(),
 
-            # (Object) faces = (Number of all (object) face, 3)
+            # (Object) faces = (Number of all (object) faces, 3)
             # Adding elementwise the number of vertices of tactile sensor to separate two sets
             # of indices (object face indices and tactile sensor tetrahedral indices)
             "faces": self._obj_reusable_data[obj]["faces"]
@@ -386,8 +403,10 @@ class DGSDataset(Dataset):
     @staticmethod
     def collate(datapoints: List[Datapoint]) -> Databatch:
         vert_template_pos_lst = [] # List to store all template vertice positions
+        rigid_transformation_template_lst = [] # List to store all template rigid transformations
         vert_1st_frame_pos_lst = [] # List to store all first frame vertice positions
         vert_2nd_frame_pos_lst = [] # List to store all second frame vertice positions
+        rigid_transformation_2nd_frame_lst = [] # List to store all second frame rigid transformations
         forces_lst = [] # List to store all forces
         ts_normal_lst = [] # List to store all tactile sensor normals (both left and right)
         vert_pos_lst = [] # List to store all current (considered) frame vertice positions
@@ -402,8 +421,10 @@ class DGSDataset(Dataset):
         current_node_index_cumul = 0 # This value is used to compute cumulative node indices when combining data points
         for idx, datapoint in enumerate(datapoints):
             vert_template_pos_lst.append(datapoint["template.vertices.positions"])
+            rigid_transformation_template_lst.append(datapoint["template.rigid_transformation"])
             vert_1st_frame_pos_lst.append(datapoint["1st_frame.vertices.positions"])
             vert_2nd_frame_pos_lst.append(datapoint["2nd_frame.vertices.positions"])
+            rigid_transformation_2nd_frame_lst.append(datapoint["2nd_frame.rigid_transformation"])
             forces_lst.append(datapoint["forces"])
             ts_normal_lst.append(datapoint["tactile_sensors.normals"])
             vert_pos_lst.append(datapoint["vertices.positions"])
@@ -425,8 +446,10 @@ class DGSDataset(Dataset):
         # Gather all information from all data points together
         batch: Databatch = {
             "template.vertices.positions": torch.cat(vert_template_pos_lst, dim=-2),
+            "template.rigid_transformation": torch.stack(rigid_transformation_template_lst, dim=-2),
             "1st_frame.vertices.positions": torch.cat(vert_1st_frame_pos_lst, dim=-2),
             "2nd_frame.vertices.positions": torch.cat(vert_2nd_frame_pos_lst, dim=-2),
+            "2nd_frame.rigid_transformation": torch.stack(rigid_transformation_2nd_frame_lst, dim=-2),
             "forces": torch.tensor(forces_lst),
             "tactile_sensors.normals": torch.stack(ts_normal_lst, dim=-3),
             "vertices.positions": torch.cat(vert_pos_lst, dim=-2),

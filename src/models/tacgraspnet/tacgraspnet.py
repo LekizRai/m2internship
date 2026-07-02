@@ -27,9 +27,6 @@ class TacGraspNet(nn.Module):
         ).to(config.device)
 
         # Initialize MLPs for edge feature encoding
-        print("#############")
-        print("Use ModuleDict")
-        print("#############")
         self._edge_encoders = nn.ModuleDict()
         for edge_type in config.edge_types:
             self._edge_encoders[edge_type] = MLP(
@@ -51,6 +48,17 @@ class TacGraspNet(nn.Module):
                 is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
 
+        # Initialize MLP for global node feature encoding
+        # Initialize only when flag is true
+        if config.use_global_node:
+            self._global_node_encoder = MLP(
+                input_dim=config.global_node_feature_dim,
+                output_dim=config.latent_dim,
+                hidden_dims=config.hidden_dims,
+                hidden_activation=nn.ReLU(),
+                is_output_normalized=config.use_final_layer_norm,
+            ).to(config.device)
+
         # Initialization for processing
         if config.use_message_passing_separate_mlps: # Multiple (separate) GraphNetBlocks are created
             self._graphnetblocks = nn.ModuleList()
@@ -59,9 +67,6 @@ class TacGraspNet(nn.Module):
                     config=config,
                 ))
         else: # Only one GraphNetBlock is created
-            print("#############")
-            print("Use the same GraphNetBlock")
-            print("#############")
             self._graphnetblock = GraphNetBlock(config=config)
 
         # Initializations for decoding
@@ -85,6 +90,17 @@ class TacGraspNet(nn.Module):
                 # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
             ).to(config.device)
 
+        # Initialize MLP for global node decoding
+        # Initialize only when flag is true
+        if config.use_global_node:
+            self._global_node_decoder = MLP(
+                input_dim=config.latent_dim,
+                output_dim=config.global_node_output_dim,
+                hidden_dims=config.hidden_dims,
+                hidden_activation=nn.ReLU(),
+                # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
+            ).to(config.device)
+
         # Initialize normalizers for feature normalization if flag is true
         if config.normalize_features:
             self._node_normalizer = Normalizer(
@@ -97,18 +113,32 @@ class TacGraspNet(nn.Module):
                     config=config,
                     feature_dim=config.edge_feature_dims[edge_type]
                 ).to(config.device)
-            self._node_output_normalizer = Normalizer(
-                config=config,
-                feature_dim=config.node_output_dim
-            ).to(config.device)
             if config.use_node_tetra_separate_decoders: # Initialize normalizer for tetrahedral features if flag is true
                 self._tetra_normalizer = Normalizer(
                     config=config,
                     feature_dim=config.tetra_feature_dim
                 ).to(config.device)
+            if config.use_global_node: # Initialize normalizer for global node features if flag is true
+                self._global_node_normalizer = Normalizer(
+                    config=config,
+                    feature_dim=config.global_node_feature_dim
+                ).to(config.device)
+
+        # Initialize normalizers for output normalization if flag is true
+        if config.normalize_outputs:
+            self._node_output_normalizer = Normalizer(
+                config=config,
+                feature_dim=config.node_output_dim
+            ).to(config.device)
+            if config.use_node_tetra_separate_decoders: # Initialize normalizer for tetrahedral outputs if flag is true
                 self._tetra_output_normalizer = Normalizer(
                     config=config,
                     feature_dim=config.tetra_output_dim
+                ).to(config.device)
+            if config.use_global_node:  # Initialize normalizer for global node output if flag is true
+                self._global_node_output_normalizer = Normalizer(
+                    config=config,
+                    feature_dim=config.global_node_output_dim
                 ).to(config.device)
 
     def _encode(self, batch: Databatch) -> Databatch:
@@ -123,6 +153,10 @@ class TacGraspNet(nn.Module):
         if self._config.use_node_tetra_separate_decoders:
             batch["tetrahedra.features"] = self._tetra_encoder(batch["tetrahedra.features"])
 
+        # Encode global node features if flag is true
+        if self._config.use_global_node:
+            batch["global_node.features"] = self._global_node_encoder(batch["global_node.features"])
+
         return batch
 
     def _decode(self, batch: Databatch) -> Databatch:
@@ -133,26 +167,28 @@ class TacGraspNet(nn.Module):
         if self._config.use_node_tetra_separate_decoders:
             batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
 
-        print("--- DECODE DIAGNOSTIC ---")
-        print("Output Disps Min/Max:", batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].min().item(), batch["nodes.outputs"][batch["nodes.types"] != NodeType.OBJECT].max().item())
-        print("Output Stress Min/Max:", batch["tetrahedra.outputs"].min().item(), batch["tetrahedra.outputs"].max().item())
+        # Decode global node feature if flag is true
+        if self._config.use_global_node:
+            batch["global_node.outputs"] = self._global_node_decoder(batch["global_node.features"])
 
         return batch
 
     def _update(self, batch: Databatch) -> Databatch:
         # TODO
-        # Unnormalize node (and tetrahedral) outputs to compute next positions and scores
+        # Unnormalize node (and tetrahedral, global node) outputs to compute next positions and scores
         if self._config.normalize_outputs: # If flag is true, then using normalizers
-            if self._config.use_node_tetra_separate_decoders:
+            if self._config.use_node_tetra_separate_decoders: # Unnormalize node and tetrahedral outputs if flag is true
                 unnormalized_pred_disps = self._node_output_normalizer.inverse(batch["nodes.outputs"])
                 unnormalized_pred_stresses = self._tetra_output_normalizer.inverse(batch["tetrahedra.outputs"])
-            else:
+            else: # Only unnormalize node outputs otherwise
                 unnormalized_outputs = self._node_output_normalizer.inverse(batch["nodes.outputs"])
                 unnormalized_pred_disps, unnormalized_pred_stresses = torch.split(
                     unnormalized_outputs,
                     [3, 1],
                     dim=-1
                 )
+            if self._config.use_global_node: # Unnormalize global node outputs
+                unnormalized_pred_rigid_transformation = self._global_node_output_normalizer.inverse(batch["global_node.outputs"])
         else: # Otherwise, the outputs themselves are unnormalized
             if self._config.use_node_tetra_separate_decoders:
                 unnormalized_pred_disps = batch["nodes.outputs"]
@@ -163,6 +199,8 @@ class TacGraspNet(nn.Module):
                     [3, 1],
                     dim=-1
                 )
+            if self._config.use_global_node: # Unnormalize global node outputs
+                unnormalized_pred_rigid_transformation = batch["global_node.outputs"]
 
         # Extract vertice positions of objects (since it is unchanged)
         pred_obj_pos = batch["vertices.positions"][batch["nodes.types"] == NodeType.OBJECT]
@@ -221,15 +259,18 @@ class TacGraspNet(nn.Module):
             unnormalized_pred_stresses[batch["nodes.types"] == NodeType.OBJECT] = 0.0
         unnormalized_pred_stresses = F.relu(unnormalized_pred_stresses)
 
-        # Add predicted value
+        # Add predicted values
         batch["predictions.vertices.positions"] = pred_pos
         batch["predictions.vertices.displacements"] = unnormalized_pred_disps
         if self._config.use_node_tetra_separate_decoders:
             batch["predictions.tetrahedra.stresses"] = unnormalized_pred_stresses
         else:
             batch["predictions.vertices.stresses"] = unnormalized_pred_stresses
+        if self._config.use_global_node:
+            batch["predictions.rigid_transformation"] = unnormalized_pred_rigid_transformation
         ######
 
+        # Add target values
         if self._config.use_node_tetra_separate_decoders:  # Extract both node and tetrahedral outputs if flag is true
             # Extract only tactile sensor node outputs (target displacements)
             batch["targets.nodes.outputs"] = target_ts_disps  # Target displacements
@@ -241,6 +282,11 @@ class TacGraspNet(nn.Module):
                 target_ts_disps,
                 batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
             ], dim=-1)
+        if self._config.use_global_node: # Extract target rigid transformation if flag is true
+            if self._config.use_template_data:
+                batch["targets.global_node.outputs"] = batch["template.rigid_transformation"]
+            else:
+                batch["targets.global_node.outputs"] = batch["2nd_frame.rigid_transformation"]
 
         # Normalize target outputs if flag is true
         if self._config.normalize_outputs:
@@ -258,6 +304,11 @@ class TacGraspNet(nn.Module):
                     batch["targets.nodes.outputs"],
                     is_training=self._config.is_training
                 ) # Normalize node outputs (Target displacements and stresses)
+            if self._config.use_global_node: # Normalize global node outputs if flag is true
+                batch["targets.global_node.normalized_outputs"] = self._global_node_output_normalizer(
+                    batch["targets.global_node.outputs"],
+                    is_training=self._config.is_training
+                )
 
         return batch
 
@@ -325,7 +376,7 @@ class TacGraspNet(nn.Module):
                 self._node_output_normalizer(
                     target_ts_disps,
                     is_training=True
-                )  # Normalize node outputs (Target displacements)
+                )  # Normalize node outputs (target displacements)
                 self._tetra_output_normalizer(
                     batch["tetrahedra.stresses"],
                     is_training=True
@@ -337,7 +388,18 @@ class TacGraspNet(nn.Module):
                         batch["vertices.stresses"]
                     ], dim=-1),
                     is_training=True
-                )  # Normalize node outputs (Target displacements and stresses)
+                )  # Normalize node outputs (target displacements and stresses)
+            if self._config.use_global_node: # Normalize global node output if flag is true
+                if self._config.use_template_data:
+                    self._global_node_output_normalizer(
+                        batch["template.rigid_transformation"],
+                        is_training=True
+                    )
+                else:
+                    self._global_node_output_normalizer(
+                        batch["2nd_frame.rigid_transformation"],
+                        is_training=True
+                    )
 
     def set_is_training(self, is_training: bool):
         self._config.is_training = is_training

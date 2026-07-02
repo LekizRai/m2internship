@@ -147,3 +147,93 @@ def kabsch(A: torch.Tensor, B: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor
     t = (muB - muA @ R.T).squeeze(0)
 
     return R.to(dtype=dtype, device=device), t.to(dtype=dtype, device=device)
+
+def pointcloud_transform(A, B):
+    """
+    Computes best-fit rigid body transformation between point clouds A and B, that is
+    the 3D translation and rotation that minimizes least squares error between
+    transformed A and B using singular value decomposition.
+
+    Args:
+            A
+            B
+
+    Returns:
+            translation: 3D translation tensor
+            rotation: 3x3 rotation matrix tensor
+    """
+    assert A.shape == B.shape
+
+    A_centroid = torch.mean(A, dim=0)
+    B_centroid = torch.mean(B, dim=0)
+    A_zero_mean = A - A_centroid
+    B_zero_mean = B - B_centroid
+
+    cov = A_zero_mean.T @ B_zero_mean
+    U, S, Vh = torch.linalg.svd(cov)
+
+    rotation = Vh.T @ U.T
+
+    if torch.linalg.det(rotation) < 0:
+        Vh[-1, :] *= -1
+
+    rotation = Vh.T @ U.T
+    translation = B_centroid - rotation @ A_centroid
+
+    return translation, rotation
+
+def pointcloud_tf_feature(
+    pointcloud_A: torch.Tensor, pointcloud_B: torch.Tensor
+) -> torch.Tensor:
+    """
+    Constructs a 9D feature for the best-fit rigid transformation between two point
+    clouds. Computes the best-fit rigid translation and rotation between the point
+    clouds using SVD, then converts the rotation matrix into a continuous 6D
+    representation. Returns the concatenation of 3D translation and 6D rotation.
+
+    Args:
+            pointcloud_A: Pointcloud to transform from
+            pointcloud_B: Pointcloud to transform to
+
+    Returns:
+            tf_feature: 9D rigid transformation feature
+    """
+    translation, rot_matrix = pointcloud_transform(pointcloud_A, pointcloud_B)
+    rot_feature = torch_rotation_matrix_to_feature(rot_matrix)
+    tf_feature = torch.cat([translation, rot_feature], dim=0)
+    assert tf_feature.shape == (9,)
+    return tf_feature
+
+
+def torch_rotation_matrix_to_feature(rot_matrix: torch.Tensor) -> torch.Tensor:
+    """
+    Extract rotation features according to this paper:
+    https://openaccess.thecvf.com/content_CVPR_2019/html/Zhou_On_the_Continuity_of_Rotation_Representations_in_Neural_Networks_CVPR_2019_paper.html
+    Unlike the paper though, we include the second and third column instead of the first and second,
+
+    Args:
+            rot_matrix ((3,3) Tensor): Rotation matrix to extract feature from
+    Returns:
+            feature ((6,) Tensor): Extracted 6D rotation feature
+    """
+    return rot_matrix.T.reshape(-1)[3:]
+
+
+def torch_rotation_feature_to_matrix(rot_feature: torch.Tensor) -> torch.Tensor:
+    """
+    Reconstruct valid, orthonormal rotation matrix from a 6D rotation feature.
+
+    Args:
+            rot_feature ((6,) Tensor): Input 6D rotation feature
+    Returns:
+            rot_matrix ((3,3) Tensor): Reconstructed 3x3 rotation matrix
+    """
+    z_axis_unnorm = rot_feature[3:]
+    assert torch.linalg.norm(z_axis_unnorm) > 0
+    z_axis = z_axis_unnorm / torch.linalg.norm(z_axis_unnorm)
+    y_axis_unnorm = rot_feature[:3] - torch.dot(z_axis, rot_feature[:3]) * z_axis
+    assert torch.linalg.norm(y_axis_unnorm) > 0
+    y_axis = y_axis_unnorm / torch.linalg.norm(y_axis_unnorm)
+    x_axis = torch.linalg.cross(y_axis, z_axis, dim=0)
+
+    return torch.stack([x_axis, y_axis, z_axis], dim=1)

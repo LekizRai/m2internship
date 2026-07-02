@@ -16,9 +16,11 @@ class GraphNetBlock(nn.Module):
 
         # Initialize MLP for node feature update
         self._node_mlp = MLP(
-            # Input dimension = encoded (aggregated all types of corresponding toward edges + current node) feature dimensions
+            # Input dimension = encoded (aggregated all types of corresponding toward edges + current node) or (aggregated
+            # all types of corresponding toward edges + current node + global node) feature dimensions
             # Note: all features are encoded to the same latent space before
-            input_dim=config.latent_dim * (len(config.edge_types) + 1),
+            input_dim=config.latent_dim * (len(config.edge_types) + 2) if config.use_global_node
+                      else config.latent_dim * (len(config.edge_types) + 1),
             output_dim=config.latent_dim,
             hidden_dims=config.hidden_dims,
             hidden_activation=nn.ReLU(),
@@ -64,6 +66,19 @@ class GraphNetBlock(nn.Module):
                 is_output_normalized=config.use_final_layer_norm,
             ).to(config.device)
 
+        # Initialize MLP for global node feature update
+        # Initialize only when flag is true
+        if config.use_global_node:
+            self._global_node_mlp = MLP(
+                # Input dimension = encoded node feature dimensions
+                # Note: all features are encoded to the same latent space before
+                input_dim=config.latent_dim,
+                output_dim=config.latent_dim,
+                hidden_dims=config.hidden_dims,
+                hidden_activation=nn.ReLU(),
+                is_output_normalized=config.use_final_layer_norm,
+            ).to(config.device)
+
     def _update_node_features(self, batch: Dict[str, Any]) -> torch.Tensor:
         V = batch["nodes.features"].shape[-2]  # Number of nodes
 
@@ -81,6 +96,10 @@ class GraphNetBlock(nn.Module):
                 src=edge_features
             )
             features.append(aggregated_edge_features)
+
+        # Append global node features if flag is true
+        if self._config.use_global_node:
+            features.append(batch["global_node.features"].expand(V, -1))
 
         # Update node features with MLP
         return self._node_mlp(torch.cat(features, dim=-1))
@@ -123,22 +142,26 @@ class GraphNetBlock(nn.Module):
                 index=tetras[..., i, None].expand(T, D_V)
             ))
 
-        # Update edge features with MLP
+        # Update tetrahedral features with MLP
         return self._tetra_mlp(torch.cat(features, dim=-1))
 
-    # TODO
-    # def _update_global_node_feature(self, batch: Dict[str, Any]):
-    #     return batch["globa_node.features"]
+    def _update_global_node_feature(self, batch: Dict[str, Any]):
+        # Aggregate all node features by taking the mean of them
+        # Note: input is put into a list for expanding ability
+        features = [torch.mean(batch["nodes.features"], dim=-2)]
+
+        # Update global node feature with MLP
+        return self._global_node_mlp(torch.cat(features, dim=-1))
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
-        # Create a new batch for store updated information
-        # new_batch = batch.copy()
         # Store old features information which is used for residual connections later
         old_info = {"nodes.features": batch["nodes.features"].clone()}
         for edge_type in self._config.edge_types:
             old_info[edge_type + ".features"] = batch[edge_type + ".features"].clone()
         if self._config.use_node_tetra_separate_decoders:
             old_info["tetrahedra.features"] = batch["tetrahedra.features"].clone()
+        if self._config.use_global_node:
+            old_info["global_node.features"] = batch["global_node.features"].clone()
 
         # Update edge features
         for edge_type in self._config.edge_types:
@@ -152,11 +175,18 @@ class GraphNetBlock(nn.Module):
         if self._config.use_node_tetra_separate_decoders:
             batch["tetrahedra.features"] = self._update_tetra_features(batch)
 
+        # Update global node feature
+        # Update only when flag is true
+        if self._config.use_global_node:
+            batch["global_node.features"] = self._update_global_node_feature(batch)
+
         # Add residual connections
         batch["nodes.features"] = batch["nodes.features"] + old_info["nodes.features"]
         for edge_type in self._config.edge_types:
             batch[edge_type + ".features"] = batch[edge_type + ".features"] + old_info[edge_type + ".features"]
         if self._config.use_node_tetra_separate_decoders: # Add residual connections for tetrahedra if flag is true
             batch["tetrahedra.features"] = batch["tetrahedra.features"] + old_info["tetrahedra.features"]
+        if self._config.use_global_node: # Add residual connections for global node if flag is true
+            batch["global_node.features"] = batch["global_node.features"] + old_info["global_node.features"]
 
         return batch

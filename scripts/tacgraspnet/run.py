@@ -189,6 +189,15 @@ if __name__ == "__main__":
         help="Indicate whether each message passing step has its own set of MLPs or not",
         default=model_config.use_message_passing_separate_mlps,
     )
+
+    arg_parser.add_argument(
+        "-gn",
+        "--use_global_node",
+        type=universal_bool,
+        help="Indicate whether the global node is used or not",
+        default=model_config.use_global_node,
+    )
+
     arg_parser.add_argument(
         "-tib",
         "--use_translation_inductive_bias",

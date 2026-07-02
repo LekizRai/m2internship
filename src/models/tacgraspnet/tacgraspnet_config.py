@@ -42,8 +42,11 @@ class TacGraspNetConfig(Config):
     # This also means whether we create multiple or only one GraphNetBlock for (performing) each message passing step
     use_message_passing_separate_mlps: bool = False
 
+    # Indicate whether the global node is used or not
+    use_global_node: bool = True
+
     # Indicate whether translation inductive bias is used for training and evaluation or not
-    use_translation_inductive_bias: bool = False
+    use_translation_inductive_bias: bool = True
 
     ########################################
     ## Modeling configuration
@@ -69,7 +72,8 @@ class TacGraspNetConfig(Config):
     tetra_feature_dim: int = 1 # Stress (1)
 
     # Global node configuration
-    global_node_feature_dim: int = 0 # TODO
+    global_node_feature_dim: int = 1 # It is just a convention
+    global_node_output_dim: int = 9 # 9D rigid transformation which we want to predict
 
     # Output configuration
     if use_node_tetra_separate_decoders: # Displacement predictions on nodes, stress predictions on tetrahedra
