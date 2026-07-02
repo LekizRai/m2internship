@@ -22,7 +22,7 @@ mkdir -p ~/m2internship/m2internship/clusters/logs
 module purge
 module load CUDA/12.8.0
 
-cd ~/claude_m2internship/m2internship
+cd ~/m2internship/m2internship
 
 export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 

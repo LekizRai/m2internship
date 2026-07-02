@@ -269,7 +269,7 @@ if __name__ == "__main__":
     #     "train_single_obj": training.train_single_obj,
     #     "train": training.train,
     # }
-    model_config.update(args)
+    model_config.update(args) # Update model configuration using input arguments
     if args.mode == "training":
         train(model_config)
     else:
