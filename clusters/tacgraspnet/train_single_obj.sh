@@ -31,18 +31,33 @@ export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 -m training \
 -ds single_obj \
 -o "$OBJECT_NAME" \
--vs 0.2 \ # Validation ratio
--bs 1 \ # Batch size
--ne 20 \ # Number of epochs
--lr 8e-5 \ # Learning rate
--td False \ # Use template data
--fln False \ # Use final layer norms
--nf True \ # Normalize features
--no True \ # Normalize outputs
--ntsd True \ # Use separate node and tetrahedral decoders
--sem False \ # Use separate edge MLPs
--mpsm False \ # Use separate message passing MLPs (GraphNetBlock)
--gn False \ # Use global node
--tib False \ # Use translation inductive bias
--mps 15 \ # Message passing steps
--r 0.005 \ # Radius to construct contact edges
+# Validation ratio
+-vs 0.2 \
+# Batch size
+-bs 1 \
+# Number of epochs
+-ne 20 \
+# Learning rate
+-lr 8e-5 \
+# Use template data
+-td False \
+# Use final layer norms
+-fln False \
+# Normalize features
+-nf True \
+# Normalize outputs
+-no True \
+# Use separate node and tetrahedral decoders
+-ntsd True \
+# Use separate edge MLPs
+-sem False \
+# Use separate message passing MLPs (GraphNetBlock)
+-mpsm False \
+# Use global node
+-gn False \
+# Use translation inductive bias
+-tib False \
+# Message passing steps
+-mps 15 \
+# Radius to construct contact edges
+-r 0.005 \
