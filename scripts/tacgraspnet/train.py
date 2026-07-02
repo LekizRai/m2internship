@@ -59,12 +59,11 @@ def get_data_loaders(model_config: TacGraspNetConfig):
             validation_dataset_config.focused_objs = model_config.validation_objs # Here, we consider other objects for validation
             validation_dataset_config.focused_trajs = validation_frames
 
-        ##TODO
-        train_dataset_config.focused_trajs = [0]
-        # train_dataset_config.focused_frames = list(range(25))
-        validation_dataset_config.focused_trajs = [0]
-        # validation_dataset_config.focused_frames = list(range(25, 50))
-        ##
+        ####### Restraint training for debugging ############
+        # train_dataset_config.focused_trajs = [0]
+        # validation_dataset_config.focused_trajs = [0]
+        #####################################################
+
         # Construct train data loader
         train_dataset = DGSDataset(train_dataset_config)  # Construct train dataset
         train_loader = DataLoader(
