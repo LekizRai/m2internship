@@ -138,7 +138,7 @@ class GraphBuildingProcessor(Processor):
             # Number of contact edges are divided by two because they are all bidirectional edges
             # Also need to ensure that there is no divided-by-zero error
             force_per_contact_edge = force / (contact_edges.shape[-2] / 2 + 1e-8)
-            force_features = torch.full((contact_edges.shape[-2], 1), force_per_contact_edge)
+            force_features = torch.full((contact_edges.shape[-2], 1), force_per_contact_edge).to(self._config.device)
 
             # Compute contact edge features
             if self._config.use_template_data:  # Use template data if flag is true
