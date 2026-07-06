@@ -101,7 +101,7 @@ class GraphNetBlock(nn.Module):
         if self._config.use_global_node:
             global_node_features = [] # List to store all global node features
             for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
-                cur_V = batch["nodes.features"][batch["nodes.indices"] == idx].shape[0] # Number of currently considered nodes
+                cur_V = batch["nodes.features"][batch["datapoints.indices"] == idx].shape[0] # Number of currently considered nodes
                 global_node_features.append(batch["global_node.features"][idx, ...].expand(cur_V, -1))
 
             # Append global node features to feature tensor
