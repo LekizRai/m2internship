@@ -156,7 +156,7 @@ class GraphNetBlock(nn.Module):
         features = [] # List to store all global node features
         for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
             # Get node features from currently considered data point
-            cur_node_features = batch["nodes.features"][batch["nodes.indices"] == idx]
+            cur_node_features = batch["nodes.features"][batch["datapoints.indices"] == idx]
 
             # Aggregate all node features by taking the mean of them
             features.append(torch.mean(cur_node_features, dim=-2))
