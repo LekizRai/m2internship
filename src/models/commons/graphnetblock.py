@@ -162,7 +162,7 @@ class GraphNetBlock(nn.Module):
             features.append(torch.mean(cur_node_features, dim=-2))
 
         # Update global node feature with MLP
-        return self._global_node_mlp(torch.cat(features, dim=-1))
+        return self._global_node_mlp(torch.cat(features, dim=-2))
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
         # Store old features information which is used for residual connections later
