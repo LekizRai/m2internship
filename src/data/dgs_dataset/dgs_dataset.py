@@ -446,10 +446,10 @@ class DGSDataset(Dataset):
         # Gather all information from all data points together
         batch: Databatch = {
             "template.vertices.positions": torch.cat(vert_template_pos_lst, dim=-2),
-            "template.rigid_transformation": torch.stack(rigid_transformation_template_lst, dim=-2),
+            "template.rigid_transformations": torch.stack(rigid_transformation_template_lst, dim=-2),
             "1st_frame.vertices.positions": torch.cat(vert_1st_frame_pos_lst, dim=-2),
             "2nd_frame.vertices.positions": torch.cat(vert_2nd_frame_pos_lst, dim=-2),
-            "2nd_frame.rigid_transformation": torch.stack(rigid_transformation_2nd_frame_lst, dim=-2),
+            "2nd_frame.rigid_transformations": torch.stack(rigid_transformation_2nd_frame_lst, dim=-2),
             "forces": torch.tensor(forces_lst),
             "tactile_sensors.normals": torch.stack(ts_normal_lst, dim=-3),
             "vertices.positions": torch.cat(vert_pos_lst, dim=-2),

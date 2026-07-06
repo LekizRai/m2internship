@@ -99,7 +99,13 @@ class GraphNetBlock(nn.Module):
 
         # Append global node features if flag is true
         if self._config.use_global_node:
-            features.append(batch["global_node.features"].expand(V, -1))
+            global_node_features = [] # List to store all global node features
+            for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
+                cur_V = batch["nodes.features"][batch["nodes.indices"] == idx].shape[0] # Number of currently considered nodes
+                global_node_features.append(batch["global_node.features"][idx, ...].expand(cur_V, -1))
+
+            # Append global node features to feature tensor
+            features.append(torch.cat(global_node_features, dim=-2))
 
         # Update node features with MLP
         return self._node_mlp(torch.cat(features, dim=-1))
@@ -146,9 +152,14 @@ class GraphNetBlock(nn.Module):
         return self._tetra_mlp(torch.cat(features, dim=-1))
 
     def _update_global_node_feature(self, batch: Dict[str, Any]):
-        # Aggregate all node features by taking the mean of them
-        # Note: input is put into a list for expanding ability
-        features = [torch.mean(batch["nodes.features"], dim=-2)]
+        # Compute predicted and target values separately for each data point
+        features = [] # List to store all global node features
+        for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
+            # Get node features from currently considered data point
+            cur_node_features = batch["nodes.features"][batch["nodes.indices"] == idx]
+
+            # Aggregate all node features by taking the mean of them
+            features.append(torch.mean(cur_node_features, dim=-2))
 
         # Update global node feature with MLP
         return self._global_node_mlp(torch.cat(features, dim=-1))

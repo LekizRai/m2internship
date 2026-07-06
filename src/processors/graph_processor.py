@@ -34,9 +34,11 @@ class GraphBuildingProcessor(Processor):
             tetra_features = torch.zeros(batch["tetrahedra"].shape[-2], 1)
             batch["tetrahedra.features"] = tetra_features
 
-        # Build global node feature
+        # Build global node features
+        # Note that for each graph (i.e. each data point) we have one unique global node
         if self._config.use_global_node:
-            global_node_features = torch.zeros(1, self._config.global_node_feature_dim)
+            n_data_points = torch.unique(batch["datapoints.indices"]).shape[0] # Number of data points (i.e. number of global nodes)
+            global_node_features = torch.zeros(n_data_points, self._config.global_node_feature_dim)
             batch["global_node.features"] = global_node_features
 
         return batch
@@ -175,7 +177,7 @@ class GraphBuildingProcessor(Processor):
 
     def _build_node_features(self, batch: Databatch) -> torch.Tensor:
         # Update: velocity in this context is not common velocity. In fact, it is closing direction
-        # Get node velocities of tactile sensors and object
+        # Get node velocities of tactile sensors and object separately for each data point
         # Note that velocities are computed using normal vectors of tactile sensors (left and right)
         node_velocities = [] # Initialize node velocity list
         for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
