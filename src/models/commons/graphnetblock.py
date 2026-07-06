@@ -159,7 +159,7 @@ class GraphNetBlock(nn.Module):
             cur_node_features = batch["nodes.features"][batch["datapoints.indices"] == idx]
 
             # Aggregate all node features by taking the mean of them
-            features.append(torch.mean(cur_node_features, dim=-2))
+            features.append(torch.mean(cur_node_features, dim=-2, keepdim=True))
 
         # Update global node feature with MLP
         return self._global_node_mlp(torch.cat(features, dim=-2))
