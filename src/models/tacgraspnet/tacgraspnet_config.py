@@ -161,7 +161,7 @@ class TacGraspNetConfig(Config):
 
     def update(self, args: argparse.Namespace):
         # Model mode
-        self.is_training = args.is_training
+        # self.is_training = args.is_training
         self.mode = args.mode
 
         # Important flags
