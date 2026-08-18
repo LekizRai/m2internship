@@ -330,6 +330,10 @@ class DGSDataset(Dataset):
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
+            "object": obj,
+            "trajectory": traj,
+            "frame": frame,
+
             # Template (at-rest) data = (Number of all vertices, 3)
             "template.vertices.positions": torch.cat([
                 self._ts_reusable_data["template_verts"],
@@ -402,6 +406,9 @@ class DGSDataset(Dataset):
 
     @staticmethod
     def collate(datapoints: List[Datapoint]) -> Databatch:
+        obj_lst = [] # List to store all objects
+        traj_lst = [] # List to store all trajectories
+        frame_lst = [] # List to store all frames
         vert_template_pos_lst = [] # List to store all template vertice positions
         rigid_transformation_template_lst = [] # List to store all template rigid transformations
         vert_1st_frame_pos_lst = [] # List to store all first frame vertice positions
@@ -420,6 +427,9 @@ class DGSDataset(Dataset):
         # Combine all data point to form a data batch (to form a big combined graph later)
         current_node_index_cumul = 0 # This value is used to compute cumulative node indices when combining data points
         for idx, datapoint in enumerate(datapoints):
+            obj_lst.append(datapoint["object"])
+            traj_lst.append(datapoint["trajectory"])
+            frame_lst.append(datapoint["frame"])
             vert_template_pos_lst.append(datapoint["template.vertices.positions"])
             rigid_transformation_template_lst.append(datapoint["template.rigid_transformation"])
             vert_1st_frame_pos_lst.append(datapoint["1st_frame.vertices.positions"])
@@ -445,6 +455,9 @@ class DGSDataset(Dataset):
 
         # Gather all information from all data points together
         batch: Databatch = {
+            "objects": obj_lst,
+            "trajectories": traj_lst,
+            "frames": frame_lst,
             "template.vertices.positions": torch.cat(vert_template_pos_lst, dim=-2),
             "template.rigid_transformations": torch.stack(rigid_transformation_template_lst, dim=-2),
             "1st_frame.vertices.positions": torch.cat(vert_1st_frame_pos_lst, dim=-2),

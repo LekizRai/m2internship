@@ -1,14 +1,14 @@
 import torch
+import argparse
+import os
 
 from typing import Dict, List
 from dataclasses import dataclass, field
 
 from commons.config import Config
 from commons.datatype import NodeType
+from utils.directory import get_project_root_folder
 
-# TODO:
-#  Predict normalized outputs
-#  Examine each data point (whether it is valid or not)
 
 @dataclass
 class TacGraspNetConfig(Config):
@@ -17,6 +17,8 @@ class TacGraspNetConfig(Config):
     ########################################
     # Indicate whether the model is training or not
     # It is used mainly for normalizer. Normalization is conducted only during training process
+    # It is also used for set mode of the model later in __post_init__
+    mode: str = "" # In fact, it is used for testing on local machine only
     is_training: bool = True
 
     # Indicate whether template data (e.g. vertice positions, ...) are used instead of first frame data or not
@@ -115,10 +117,10 @@ class TacGraspNetConfig(Config):
     validation_ratio: float = 0.2
 
     # Batch size
-    batch_size: int = 2
+    batch_size: int = 1
 
     # Number of epochs
-    n_epochs: int = 20
+    n_epochs: int = 1
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {
@@ -140,16 +142,30 @@ class TacGraspNetConfig(Config):
     # Validation objects (only for training with multiple objects)
     validation_objs: List[str] = field(default_factory=lambda: ["potato1"])
 
+    # Given directory storing old arguments and checkpoints (for continuing training or evaluation)
+    given_dir: str = os.path.join(get_project_root_folder(), "runs", "test")
+
+    # Training save directory for checkpoints and arguments
+    save_dir: str = os.path.join(get_project_root_folder(), "runs", "test")
+
+    # Indicate whether to create visualizations in evaluation or not (only effective in evaluation mode)
+    create_visualizations: bool = True
+
     # This attribute is used to store arguments from keyboard
     # Initialize it as dictionary
     args = {}
 
     def __post_init__(self):
+        self.mode = "training" if self.is_training else "evaluation"
         self.hidden_dims = [128] * self.n_hidden_layers
 
-    def update(self, args):
+    def update(self, args: argparse.Namespace):
+        # Model mode
+        self.is_training = args.is_training
+        self.mode = args.mode
+
         # Important flags
-        self.is_training = args.mode == "training"
+        self.is_training = self.mode == "training"
         self.use_template_data = args.use_template_data
         self.use_final_layer_norm = args.use_final_layer_norm
         self.normalize_features = args.normalize_features
@@ -208,6 +224,15 @@ class TacGraspNetConfig(Config):
         for obj in args.validation_objs:
             if obj not in self.objs:
                 self.validation_objs.append(obj)
+
+        # Given directory update
+        self.given_dir = args.given_dir
+
+        # Save directory update
+        self.save_dir = args.save_dir
+
+        # Create visualizations update
+        self.create_visualizations = args.create_visualizations
 
         # Store all those from keyboard arguments also
         self.args = args

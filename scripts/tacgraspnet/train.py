@@ -1,10 +1,11 @@
 import random
-import time
 import wandb
 import torch
+import os
 
 from tqdm import tqdm
 from datetime import datetime
+from dataclasses import asdict
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 
@@ -14,7 +15,6 @@ from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
 from models.tacgraspnet.tacgraspnet_processor import make_tacgraspnet_processors
 from models.tacgraspnet.tacgraspnet import TacGraspNet
 from losses.tacgraspnet.mse import MSE
-from scores.tacgraspnet.r2 import DisplacementR2PerSample, StressR2PerSample
 from scores.tacgraspnet.mae import DisplacementMAE, StressMAE
 
 
@@ -23,77 +23,78 @@ def get_data_loaders(model_config: TacGraspNetConfig):
     train_dataset_config = DGSDatasetConfig()
     validation_dataset_config = DGSDatasetConfig()
 
-    if model_config.mode == "training": # If we are in training mode
-        # Get frames for validation and training
-        trajs = list(range(100))
-        random.shuffle(trajs)
-        validation_size = int(100 * model_config.validation_ratio)  # 100 is the number of trajectories (grasping poses) for each object
-        validation_frames = trajs[:validation_size] # Trajectories for validation
-        train_frames = trajs[validation_size:] # Trajectories for training
+    # Get frames for validation and training
+    trajs = list(range(100))
+    random.shuffle(trajs)
+    validation_size = int(100 * model_config.validation_ratio)  # 100 is the number of trajectories (grasping poses) for each object
+    validation_trajs = trajs[:validation_size] # Trajectories for validation
+    train_trajs = trajs[validation_size:] # Trajectories for training
 
-        if model_config.data_strategy == "single_obj": # If we train on one single object
-            # Construct train data loader
-            train_dataset_config.focused_objs = [model_config.objs[0]] # Only consider the first object in the list
-            print(model_config.objs[0])
-            train_dataset_config.focused_trajs = train_frames
-
-            # Construct validation dataset
-            validation_dataset_config.focused_objs = [model_config.objs[0]]
-            validation_dataset_config.focused_trajs = validation_frames
-
-        elif model_config.data_strategy == "multiple_objs_1": # Else if we train on multiple objects with first option
-            # Construct train data loader
-            train_dataset_config.focused_objs = model_config.objs
-            train_dataset_config.focused_trajs = train_frames
-
-            # Construct validation dataset
-            validation_dataset_config.focused_objs = model_config.objs
-            validation_dataset_config.focused_trajs = validation_frames
-
-        else: # Otherwise, we train on multiple objects with second option
-            # Construct train data loader
-            train_dataset_config.focused_objs = model_config.objs
-            train_dataset_config.focused_trajs = train_frames
-
-            # Construct validation dataset
-            validation_dataset_config.focused_objs = model_config.validation_objs # Here, we consider other objects for validation
-            validation_dataset_config.focused_trajs = validation_frames
-
-        ####### Restraint training for debugging ############
-        train_dataset_config.focused_trajs = [0]
-        validation_dataset_config.focused_trajs = [0]
-        #####################################################
-
+    if model_config.data_strategy == "single_obj": # If we train on one single object
         # Construct train data loader
-        train_dataset = DGSDataset(train_dataset_config)  # Construct train dataset
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=model_config.batch_size,
-            shuffle=True,
-            collate_fn=DGSDataset.collate,
-            num_workers=4,
-            pin_memory=True,
-        )
+        train_dataset_config.focused_objs = [model_config.objs[0]] # Only consider the first object in the list
+        train_dataset_config.focused_trajs = train_trajs
 
-        # Construct validation data loader
-        validation_dataset = DGSDataset(validation_dataset_config)  # Construct validation dataset
-        validation_loader = DataLoader(
-            validation_dataset,
-            batch_size=1,
-            shuffle=False,
-            collate_fn=DGSDataset.collate,
-            num_workers=4,
-            pin_memory=True,
-        )
+        # Construct validation dataset
+        validation_dataset_config.focused_objs = [model_config.objs[0]]
+        validation_dataset_config.focused_trajs = validation_trajs
 
-        return train_loader, validation_loader
-    else:
-        return None
+    elif model_config.data_strategy == "multiple_objs_1": # Else if we train on multiple objects with first option
+        # Construct train data loader
+        train_dataset_config.focused_objs = model_config.objs
+        train_dataset_config.focused_trajs = train_trajs
+
+        # Construct validation dataset
+        validation_dataset_config.focused_objs = model_config.objs
+        validation_dataset_config.focused_trajs = validation_trajs
+
+    else: # Otherwise, we train on multiple objects with second option
+        # Construct train data loader
+        train_dataset_config.focused_objs = model_config.objs
+        train_dataset_config.focused_trajs = train_trajs
+
+        # Construct validation dataset
+        validation_dataset_config.focused_objs = model_config.validation_objs # Here, we consider other objects for validation
+        validation_dataset_config.focused_trajs = validation_trajs
+
+    ####### Restraint training for debugging ############
+    train_dataset_config.focused_trajs = [0]
+    validation_dataset_config.focused_trajs = [0]
+    #####################################################
+
+    # Construct train data loader
+    train_dataset = DGSDataset(train_dataset_config)  # Construct train dataset
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=model_config.batch_size,
+        shuffle=True,
+        collate_fn=DGSDataset.collate,
+        num_workers=4,
+        pin_memory=True,
+    )
+
+    # Construct validation data loader
+    validation_dataset = DGSDataset(validation_dataset_config)  # Construct validation dataset
+    validation_loader = DataLoader(
+        validation_dataset,
+        batch_size=1,
+        shuffle=False,
+        collate_fn=DGSDataset.collate,
+        num_workers=4,
+        pin_memory=True,
+    )
+
+    return train_loader, validation_loader
 
 def train(model_config: TacGraspNetConfig):
     if model_config.mode == "training":
-        # Set random seed for PyTorch
-        torch.random.manual_seed(42)
+        # Create save directory if it does not exist
+        os.makedirs(model_config.save_dir, exist_ok=True)
+
+        # Save training arguments
+        args_path = os.path.join(model_config.save_dir, "args.pth")
+        # torch.save(model_config.args, args_path)
+        torch.save(asdict(model_config), args_path)
 
         # Construct data loaders
         train_loader, validation_loader = get_data_loaders(model_config)
@@ -101,7 +102,7 @@ def train(model_config: TacGraspNetConfig):
         # Initialize logging
         logger = wandb.init(
             project="TacGraspNet",
-            name=f"train_{model_config.data_strategy}_{datetime.now().strftime('%m%d_%H%M')}",
+            name=f"{model_config.data_strategy}_{datetime.now().strftime('%m%d_%H%M')}",
             config = model_config.__dict__,
         )
 
@@ -128,6 +129,7 @@ def train(model_config: TacGraspNetConfig):
             model.accumulate(batch)
 
         # Training
+        min_validation_loss = 1e9 + 7
         for epoch in range(model_config.n_epochs):
             ########################################
             ## Train model
@@ -137,7 +139,27 @@ def train(model_config: TacGraspNetConfig):
             model.set_is_training(False)
             # model.set_is_training(True) # Set flag to true to wake up normalizers TODO
 
-            # Initialize train loss and score sums
+            # Train
+            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
+                # Optimizing model
+                optimizer.zero_grad()
+                preprocessed_batch = preprocessor(batch)
+                prediction = model(preprocessed_batch)
+                loss = loss_fn(prediction)
+                loss.backward()
+                optimizer.step()
+
+            ########################################
+            ## Validate model
+            ########################################
+            # Set model's mode to "eval"
+            model.eval()
+            model.set_is_training(False) # Set flag to false to suspend normalizers
+
+            ########################################
+            ## Training set
+            ########################################
+            # Initialize training loss and score sums
             train_loss_sum = 0.0
             train_score_sums = {}
             for score_class in score_classes:
@@ -147,18 +169,12 @@ def train(model_config: TacGraspNetConfig):
             n_batches = 0.0
 
             # Train
-            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
-                # Optimizing model
-                optimizer.zero_grad()
-                preprocessed_batch = preprocessor(batch)
-                prediction = model(preprocessed_batch)
-                extra_tet_output = model._tetra_output_normalizer._get_statistics()
-                loss = loss_fn(prediction)
-                loss.backward()
-                optimizer.step()
-
-                # Update train loss and score sums
+            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training losses and scores", mininterval=5.0):
+                # Update training loss and score sums
                 with torch.no_grad():
+                    preprocessed_batch = preprocessor(batch)
+                    prediction = model(preprocessed_batch)
+                    loss = loss_fn(prediction)
                     train_loss_sum += loss.item()
                     for score_class in score_classes:
                         train_score_sums[score_class] += score_fns[score_class](batch).item()
@@ -167,12 +183,8 @@ def train(model_config: TacGraspNetConfig):
                 n_batches += 1.0
 
             ########################################
-            ## Validate model
+            ## Validation set
             ########################################
-            # Set model's mode to "train"
-            model.eval()
-            model.set_is_training(False) # Set flag to false to suspend normalizers
-
             # Initialize validation loss and score sums
             validation_loss_sum = 0.0
             validation_score_sums = {}
@@ -182,7 +194,7 @@ def train(model_config: TacGraspNetConfig):
             # Number of data points to compute average scores
             n_data_points = 0.0
             for data_point in tqdm(validation_loader, desc=f"Epoch {epoch} validation", mininterval=5.0):
-                # Update validation score sums
+                # Update validation loss and score sums
                 with torch.no_grad():
                     preprocessed_data_point = preprocessor(data_point)
                     prediction = model(preprocessed_data_point)
@@ -212,11 +224,26 @@ def train(model_config: TacGraspNetConfig):
             # Do logging
             logger.log(logs, step=epoch + 1, commit=True)
 
+            ########################################
+            ## Save checkpoint
+            ########################################
+            # Only save checkpoint if the current loss is the lowest
+            if (validation_loss_sum / n_data_points) < min_validation_loss:
+                min_validation_loss = validation_loss_sum / n_data_points
+                checkpoint_path = os.path.join(model_config.save_dir, "checkpoint.pth")
+                print(f"Saving best checkpoint at {checkpoint_path}")
+                checkpoint = (
+                    model.state_dict(),
+                    optimizer.state_dict(),
+                    epoch,
+                )
+                torch.save(checkpoint, checkpoint_path)
+
         return None
     else:
         return None
 
 
 if __name__ == "__main__":
-    config = TacGraspNetConfig()
-    train(config)
+    train_config = TacGraspNetConfig()
+    train(train_config)

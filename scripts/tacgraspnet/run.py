@@ -1,5 +1,6 @@
 import torch
 import argparse
+import random
 
 from commons.datatype import universal_bool
 from models.tacgraspnet.tacgraspnet_config import TacGraspNetConfig
@@ -8,6 +9,10 @@ from train import train
 
 
 if __name__ == "__main__":
+    # Set random seed for PyTorch and random operations later
+    torch.random.manual_seed(42)
+    random.seed(42)
+
     # Initialize model configuration
     model_config = TacGraspNetConfig()
 
@@ -20,23 +25,23 @@ if __name__ == "__main__":
         description="Train or evaluate TacGraspNet on DGS dataset",
     )
 
-    # TODO
-    # Meta paths
-    # parser.add_argument(
-    #     "-mp", "--model_path", help="Path to dump or load trained model at", type=Path
-    # )
-    # parser.add_argument(
-    #     "--sim_output_path",
-    #     help="Path to the folder `sim_output` (DefGraspSim results)",
-    #     default="/workspace/data",
-    #     type=Path,
-    # )
-    # parser.add_argument(
-    #     "--sim_input_path",
-    #     help="Path to the folder `sim_input` (DefGraspNets inputs)",
-    #     default="/workspace/data",
-    #     type=Path,
-    # )
+    # Given directory storing old arguments and checkpoint (for continuing training or evaluation)
+    arg_parser.add_argument(
+        "-gd",
+        "--given_dir",
+        type=str,
+        help="Directory to store old arguments and checkpoints (for continuing training or evaluation)",
+        default=model_config.given_dir,
+    )
+
+    # Training save directory for checkpoints and arguments
+    arg_parser.add_argument(
+        "-sd",
+        "--save_dir",
+        type=str,
+        help="Directory to save checkpoints and arguments when conducting training",
+        default=model_config.save_dir,
+    )
 
     # Running mode (training or evaluation)
     arg_parser.add_argument(
@@ -117,6 +122,15 @@ if __name__ == "__main__":
         type=int,
         help="Number of training epochs",
         default=model_config.n_epochs,
+    )
+
+    # Create visualizations or not (only effective in evaluation mode)
+    arg_parser.add_argument(
+        "-cv",
+        "--create_visualizations",
+        type=int,
+        help="Indicate whether to create visualizations in evaluation or not. Only effective in evaluation mode",
+        default=model_config.create_visualizations,
     )
 
     ########################################
@@ -239,36 +253,6 @@ if __name__ == "__main__":
     # Argument parsing
     args = arg_parser.parse_args()
 
-    # if args.seed is None:
-    #     args.seed = np.random.randint(99999)
-    # if args.model_path is None:
-    #     args.model_path = (
-    #         "/lustre/fswork/projects/rech/tya/ubn15wo/Tactile_Danylo/torchgraspnet/data/runs/"
-    #         + datetime.now().strftime("%b%d-%H:%M:%S.%f")
-    #         + "-"
-    #         + str(args.seed)
-    #         + "-"
-    #         + args.mode
-    #         + "-"
-    #         + str(args.tet_stress)
-    #         + "-"
-    #         + str(args.move_gripper)
-    #     )
-    #
-    # args_path = Path(args.model_path) / "args.pth"
-    # # If args dump is present, load these args
-    # if args_path.is_file():
-    #     # Save epochs to continue training from finished training checkpoint
-    #     wished_epochs = args.epochs
-    #     args = torch.load(args_path)
-    #     args.epochs = wished_epochs
-
-    # experiment_fn = {
-    #     "train_single_frame": training.train_single_frame,
-    #     "train_single_traj": training.train_single_traj,
-    #     "train_single_obj": training.train_single_obj,
-    #     "train": training.train,
-    # }
     model_config.update(args) # Update model configuration using input arguments
     if args.mode == "training":
         train(model_config)
