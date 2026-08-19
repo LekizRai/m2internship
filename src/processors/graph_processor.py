@@ -37,9 +37,15 @@ class GraphBuildingProcessor(Processor):
         # Build global node features
         # Note that for each graph (i.e. each data point) we have one unique global node
         if self._config.use_global_node:
-            n_data_points = torch.unique(batch["datapoints.indices"]).shape[0] # Number of data points (i.e. number of global nodes)
-            global_node_features = torch.zeros(n_data_points, self._config.global_node_feature_dim)
-            batch["global_node.features"] = global_node_features
+            if self._config.use_stiffness_on_global_node:
+                global_node_features = torch.cat([
+                    batch["young_moduli"].reshape(-1, 1),
+                    batch["poisson_ratios"].reshape(-1, 1)
+                ], dim=-1)
+            else:
+                n_data_points = torch.unique(batch["datapoints.indices"]).shape[0] # Number of data points (i.e. number of global nodes)
+                global_node_features = torch.zeros(n_data_points, self._config.global_node_feature_dim)
+            batch["global_nodes.features"] = global_node_features
 
         return batch
 
@@ -176,35 +182,48 @@ class GraphBuildingProcessor(Processor):
         return contact_edges, contact_edge_features
 
     def _build_node_features(self, batch: Databatch) -> torch.Tensor:
-        # Update: velocity in this context is not common velocity. In fact, it is closing direction
-        # Get node velocities of tactile sensors and object separately for each data point
-        # Note that velocities are computed using normal vectors of tactile sensors (left and right)
-        node_velocities = [] # Initialize node velocity list
+        # Get node stiffnesses and gripper closing directions of tactile sensors and object separately for each data point
+        node_stiffs = [] # Initialize node
+        node_gripper_closing_directions = [] # Initialize node velocity list
         for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
             node_types = batch["nodes.types"][batch["datapoints.indices"] == idx] # Get node types of current (considered) data point
             n_obj_nodes = int((node_types == NodeType.OBJECT).sum().item())  # Get number of object nodes (vertices)
             n_ts_nodes = len(node_types) - n_obj_nodes  # Get number of tactile sensor nodes
             n_ts_comp_nodes = n_ts_nodes // 2  # Get number of each tactile sensor (component) nodes (left and right)
 
-            # Compute all node velocities (both tactile sensors and object)
-            ts_left_node_velocities = batch["tactile_sensors.normals"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
-            ts_right_node_velocities = batch["tactile_sensors.normals"][idx, 1, ...].expand(n_ts_comp_nodes, -1)
-            obj_node_velocities = torch.zeros((n_obj_nodes, 3)).to(self._config.device)
-
-            # Add velocities to node velocity list
-            node_velocities.extend([
-                ts_left_node_velocities,
-                ts_right_node_velocities,
-                obj_node_velocities
+            # Assign Young's moduli and Poisson's ratios to all nodes
+            ts_node_youngs = torch.full((n_ts_nodes, 1), batch["young_moduli"][idx].item())
+            ts_node_poissons = torch.full((n_ts_nodes, 1), batch["poisson_ratios"][idx].item())
+            ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1)
+            obj_node_youngs = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
+            obj_node_poissons = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
+            obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1)
+            node_stiffs.extend([
+                ts_node_stiffs,
+                obj_node_stiffs
             ])
 
-        node_velocities = torch.cat(node_velocities, dim=-2)
+            # Compute all node's corresponding gripper closing direction (both tactile sensors and object)
+            ts_left_node_gripper_closing_directions = batch["gripper.closing_directions"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
+            ts_right_node_gripper_closing_directions = batch["gripper.closing_directions"][idx, 1, ...].expand(n_ts_comp_nodes, -1)
+            obj_node_gripper_closing_directions = torch.zeros((n_obj_nodes, 3)).to(self._config.device) # No need, the default values are zeros
+
+            # Add velocities to node velocity list
+            node_gripper_closing_directions.extend([
+                ts_left_node_gripper_closing_directions,
+                ts_right_node_gripper_closing_directions,
+                obj_node_gripper_closing_directions
+            ])
+
+        node_stiffs = torch.cat(node_stiffs, dim=-2)
+        node_velocities = torch.cat(node_gripper_closing_directions, dim=-2)
 
         # Get node one-hot encodings of tactile sensors and object
         node_one_hot_encodings = F.one_hot(batch["nodes.types"], NodeType.NUM)
 
         # Build node features
         node_features = torch.cat([
+            node_stiffs,
             node_velocities,
             node_one_hot_encodings
         ], dim=-1)

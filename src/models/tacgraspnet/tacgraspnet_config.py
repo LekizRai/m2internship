@@ -47,6 +47,9 @@ class TacGraspNetConfig(Config):
     # Indicate whether the global node is used or not
     use_global_node: bool = True
 
+    # Indicate whether the stiffness is on the global feature or not (otherwise, it is on node feature)
+    use_stiffness_on_global_node: bool = False
+
     # Indicate whether translation inductive bias is used for training and evaluation or not
     use_translation_inductive_bias: bool = True
 
@@ -55,7 +58,7 @@ class TacGraspNetConfig(Config):
     ########################################
 
     # Node configuration
-    node_feature_dim: int = 3 + NodeType.NUM # Node velocity (3) + number of node types (3) (INTERIOR, SURFACE and OBJECT)
+    node_feature_dim: int = 5 + NodeType.NUM # Stiffness (which is Young's modulus + Poisson's ratio) (2) + gripper closing direction (3) + number of node types (3) (INTERIOR, SURFACE and OBJECT)
 
     # Edge configuration
     if use_template_data:
@@ -71,11 +74,10 @@ class TacGraspNetConfig(Config):
     edge_types: List[str] = field(default_factory=lambda: ["mesh_edges", "contact_edges"])
 
     # Tetrahedron configuration
-    tetra_feature_dim: int = 1 # Stress (1)
+    tetra_feature_dim: int = 1 # Just a representation, may be implemented later
 
     # Global node configuration
-    global_node_feature_dim: int = 1 # It is just a convention
-    global_node_output_dim: int = 9 # 9D rigid transformation which we want to predict
+    global_node_feature_dim: int = 2 # Stiffness (which is Young's modulus + Poisson's ratio) (2)
 
     # Output configuration
     if use_node_tetra_separate_decoders: # Displacement predictions on nodes, stress predictions on tetrahedra
@@ -174,6 +176,7 @@ class TacGraspNetConfig(Config):
         self.use_separate_edge_mlps = args.use_separate_edge_mlps
         self.use_message_passing_separate_mlps = args.use_message_passing_separate_mlps
         self.use_global_node = args.use_global_node
+        self.use_stiffness_on_global_node = args.use_stiffness_on_global_node
         self.use_translation_inductive_bias = args.use_translation_inductive_bias
 
         # Modeling configuration

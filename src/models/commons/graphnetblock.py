@@ -102,7 +102,7 @@ class GraphNetBlock(nn.Module):
             global_node_features = [] # List to store all global node features
             for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
                 cur_V = batch["nodes.features"][batch["datapoints.indices"] == idx].shape[0] # Number of currently considered nodes
-                global_node_features.append(batch["global_node.features"][idx, ...].expand(cur_V, -1))
+                global_node_features.append(batch["global_nodes.features"][idx, ...].expand(cur_V, -1))
 
             # Append global node features to feature tensor
             features.append(torch.cat(global_node_features, dim=-2))
@@ -172,7 +172,7 @@ class GraphNetBlock(nn.Module):
         if self._config.use_node_tetra_separate_decoders:
             old_info["tetrahedra.features"] = batch["tetrahedra.features"].clone()
         if self._config.use_global_node:
-            old_info["global_node.features"] = batch["global_node.features"].clone()
+            old_info["global_nodes.features"] = batch["global_nodes.features"].clone()
 
         # Update edge features
         for edge_type in self._config.edge_types:
@@ -189,7 +189,7 @@ class GraphNetBlock(nn.Module):
         # Update global node feature
         # Update only when flag is true
         if self._config.use_global_node:
-            batch["global_node.features"] = self._update_global_node_feature(batch)
+            batch["global_nodes.features"] = self._update_global_node_feature(batch)
 
         # Add residual connections
         batch["nodes.features"] = batch["nodes.features"] + old_info["nodes.features"]
@@ -198,6 +198,6 @@ class GraphNetBlock(nn.Module):
         if self._config.use_node_tetra_separate_decoders: # Add residual connections for tetrahedra if flag is true
             batch["tetrahedra.features"] = batch["tetrahedra.features"] + old_info["tetrahedra.features"]
         if self._config.use_global_node: # Add residual connections for global node if flag is true
-            batch["global_node.features"] = batch["global_node.features"] + old_info["global_node.features"]
+            batch["global_nodes.features"] = batch["global_nodes.features"] + old_info["global_nodes.features"]
 
         return batch

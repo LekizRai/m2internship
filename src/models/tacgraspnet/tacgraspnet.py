@@ -90,22 +90,11 @@ class TacGraspNet(nn.Module):
                 # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
             ).to(config.device)
 
-        # Initialize MLP for global node decoding
-        # Initialize only when flag is true
-        if config.use_global_node:
-            self._global_node_decoder = MLP(
-                input_dim=config.latent_dim,
-                output_dim=config.global_node_output_dim,
-                hidden_dims=config.hidden_dims,
-                hidden_activation=nn.ReLU(),
-                # is_output_normalized=config.normalize_outputs, # Here, instead, depend on the normalization flag for outputs
-            ).to(config.device)
-
         # Initialize normalizers for feature normalization if flag is true
         if config.normalize_features:
             self._node_normalizer = Normalizer(
                 config=config,
-                feature_dim=config.node_feature_dim
+                feature_dim=config.node_feature_dim - 3 # We will not normalize one-hot encodings
             ).to(config.device)
             self._edge_normalizers= {}
             for edge_type in config.edge_types:
@@ -135,11 +124,6 @@ class TacGraspNet(nn.Module):
                     config=config,
                     feature_dim=config.tetra_output_dim
                 ).to(config.device)
-            if config.use_global_node:  # Initialize normalizer for global node output if flag is true
-                self._global_node_output_normalizer = Normalizer(
-                    config=config,
-                    feature_dim=config.global_node_output_dim
-                ).to(config.device)
 
     def _encode(self, batch: Databatch) -> Databatch:
         # Encode node features
@@ -155,7 +139,7 @@ class TacGraspNet(nn.Module):
 
         # Encode global node features if flag is true
         if self._config.use_global_node:
-            batch["global_node.features"] = self._global_node_encoder(batch["global_node.features"])
+            batch["global_nodes.features"] = self._global_node_encoder(batch["global_nodes.features"])
 
         return batch
 
@@ -166,10 +150,6 @@ class TacGraspNet(nn.Module):
         # Decode tetrahedral features if flag is true
         if self._config.use_node_tetra_separate_decoders:
             batch["tetrahedra.outputs"] = self._tetra_decoder(batch["tetrahedra.features"])
-
-        # Decode global node feature if flag is true
-        if self._config.use_global_node:
-            batch["global_node.outputs"] = self._global_node_decoder(batch["global_node.features"])
 
         return batch
 
@@ -186,8 +166,6 @@ class TacGraspNet(nn.Module):
                     [3, 1],
                     dim=-1
                 )
-            if self._config.use_global_node: # Unnormalize global node outputs
-                unnormalized_pred_rigid_transformations = self._global_node_output_normalizer.inverse(batch["global_node.outputs"])
         else: # Otherwise, the outputs themselves are unnormalized
             if self._config.use_node_tetra_separate_decoders:
                 unnormalized_pred_disps = batch["nodes.outputs"]
@@ -198,8 +176,6 @@ class TacGraspNet(nn.Module):
                     [3, 1],
                     dim=-1
                 )
-            if self._config.use_global_node: # Unnormalize global node outputs
-                unnormalized_pred_rigid_transformations = batch["global_node.outputs"]
 
         # Compute predicted and target values separately for each data point
         pred_pos_lst = [] # List to store all predicted vertice positions of all data points
@@ -217,14 +193,16 @@ class TacGraspNet(nn.Module):
 
             # Apply translation inductive bias if flag is true
             if self._config.use_translation_inductive_bias:
-                # TODO
                 if self._config.use_template_data: # Use template data if flag is true
                     A = cur_template_vert_pos[cur_node_types != NodeType.OBJECT]
                 else: # Otherwise use data from 2nd frame
                     A = cur_2nd_frame_vert_pos[cur_node_types != NodeType.OBJECT]
                 B = cur_vert_pos[cur_node_types != NodeType.OBJECT]
 
-                left_idx, right_idx = split_two_fingers(A)
+                # left_idx, right_idx = split_two_fingers(A)
+                n_ts_nodes = A.shape[0]
+                left_idx = list(range(n_ts_nodes // 2))
+                right_idx = list(range(n_ts_nodes // 2, n_ts_nodes))
                 Al, Bl = A[left_idx], B[left_idx]
                 Ar, Br = A[right_idx], B[right_idx]
 
@@ -281,10 +259,6 @@ class TacGraspNet(nn.Module):
         unnormalized_pred_disps[batch["nodes.types"] == NodeType.OBJECT] = 0.0 # We assume that object does not move
         batch["predictions.vertices.displacements"] = unnormalized_pred_disps
 
-        # Predicted rigid transformation
-        if self._config.use_global_node:
-            batch["predictions.rigid_transformations"] = unnormalized_pred_rigid_transformations
-
         ########################################
         ## Target values
         ########################################
@@ -299,11 +273,6 @@ class TacGraspNet(nn.Module):
                 torch.cat(target_ts_disps_lst, dim=-2),
                 batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
             ], dim=-1)
-        if self._config.use_global_node: # Extract target rigid transformation if flag is true
-            if self._config.use_template_data:
-                batch["targets.global_node.outputs"] = batch["template.rigid_transformations"]
-            else:
-                batch["targets.global_node.outputs"] = batch["2nd_frame.rigid_transformations"]
 
         # Normalize target outputs if flag is true
         if self._config.normalize_outputs:
@@ -321,32 +290,34 @@ class TacGraspNet(nn.Module):
                     batch["targets.nodes.outputs"],
                     is_training=self._config.is_training
                 ) # Normalize node outputs (Target displacements and stresses)
-            if self._config.use_global_node: # Normalize global node outputs if flag is true
-                batch["targets.global_node.normalized_outputs"] = self._global_node_output_normalizer(
-                    batch["targets.global_node.outputs"],
-                    is_training=self._config.is_training
-                )
 
         return batch
 
     def forward(self, batch: Databatch) -> Databatch:
         # Normalize features if flag is true
         if self._config.normalize_features:
-            batch["nodes.features"] = self._node_normalizer(
-                batch["nodes.features"],
-                is_training=self._config.is_training
-            )
+            batch["nodes.features"] = torch.cat([
+                self._node_normalizer(
+                    batch["nodes.features"][..., :-3], # We will not normalize one-hot encodings
+                    is_training=self._config.is_training
+                ),
+                batch["nodes.features"][..., -3:] # Concatenate back the one-hot encodings
+            ], dim=-1)
             for edge_type in self._config.edge_types:
                 batch[edge_type + ".features"] = self._edge_normalizers[edge_type](
                     batch[edge_type + ".features"],
                     is_training=self._config.is_training
                 )
             if self._config.use_node_tetra_separate_decoders:  # Normalize tetrahedral features if flag is true
-                pass
-                # batch["tetrahedra.features"] = self._tetra_normalizer(
-                #     batch["tetrahedra.features"],
-                #     is_training=self._config.is_training
-                # )
+                batch["tetrahedra.features"] = self._tetra_normalizer(
+                    batch["tetrahedra.features"],
+                    is_training=self._config.is_training
+                )
+            if self._config.use_global_node:
+                batch["global_nodes.features"] = self._global_node_normalizer(
+                    batch["global_nodes.features"],
+                    is_training=self._config.is_training
+                )
 
         # Encode
         batch = self._encode(batch)
@@ -365,9 +336,10 @@ class TacGraspNet(nn.Module):
         return self._update(batch)
 
     def accumulate(self, batch: Databatch):
+        # Normalize input features if flat is true
         if self._config.normalize_features:
             self._node_normalizer(
-                batch["nodes.features"],
+                batch["nodes.features"][..., :-3], # We will not normalize one-hot encodings
                 is_training=True
             )
             for edge_type in self._config.edge_types:
@@ -376,12 +348,17 @@ class TacGraspNet(nn.Module):
                     is_training=True
                 )
             if self._config.use_node_tetra_separate_decoders:  # Normalize tetrahedral features if flag is true
-                pass
-                # batch["tetrahedra.features"] = self._tetra_normalizer(
-                #     batch["tetrahedra.features"],
-                #     is_training=self._config.is_training
-                # )
-                # Normalize target outputs if flat is true
+                self._tetra_normalizer(
+                    batch["tetrahedra.features"],
+                    is_training=True
+                )
+            if self._config.use_global_node:  # Normalize global features if flag is true
+                self._global_node_normalizer(
+                    batch["global_nodes.features"],
+                    is_training=True
+                )
+
+        # Normalize target outputs if flat is true
         if self._config.normalize_outputs:
             if self._config.use_template_data:
                 target_ts_disps = (batch["vertices.positions"]
@@ -406,157 +383,6 @@ class TacGraspNet(nn.Module):
                     ], dim=-1),
                     is_training=True
                 )  # Normalize node outputs (target displacements and stresses)
-            if self._config.use_global_node: # Normalize global node output if flag is true
-                if self._config.use_template_data:
-                    self._global_node_output_normalizer(
-                        batch["template.rigid_transformations"],
-                        is_training=True
-                    )
-                else:
-                    self._global_node_output_normalizer(
-                        batch["2nd_frame.rigid_transformations"],
-                        is_training=True
-                    )
 
     def set_is_training(self, is_training: bool):
         self._config.is_training = is_training
-
-    # def _update(self, batch: Databatch) -> Databatch:
-    #     # TODO
-    #     # Unnormalize node (and tetrahedral, global node) outputs to compute next positions and scores
-    #     if self._config.normalize_outputs:  # If flag is true, then using normalizers
-    #         if self._config.use_node_tetra_separate_decoders:  # Unnormalize node and tetrahedral outputs if flag is true
-    #             unnormalized_pred_disps = self._node_output_normalizer.inverse(batch["nodes.outputs"])
-    #             unnormalized_pred_stresses = self._tetra_output_normalizer.inverse(batch["tetrahedra.outputs"])
-    #         else:  # Only unnormalize node outputs otherwise
-    #             unnormalized_outputs = self._node_output_normalizer.inverse(batch["nodes.outputs"])
-    #             unnormalized_pred_disps, unnormalized_pred_stresses = torch.split(
-    #                 unnormalized_outputs,
-    #                 [3, 1],
-    #                 dim=-1
-    #             )
-    #         if self._config.use_global_node:  # Unnormalize global node outputs
-    #             unnormalized_pred_rigid_transformation = self._global_node_output_normalizer.inverse(
-    #                 batch["global_node.outputs"])
-    #     else:  # Otherwise, the outputs themselves are unnormalized
-    #         if self._config.use_node_tetra_separate_decoders:
-    #             unnormalized_pred_disps = batch["nodes.outputs"]
-    #             unnormalized_pred_stresses = batch["tetrahedra.outputs"]
-    #         else:
-    #             unnormalized_pred_disps, unnormalized_pred_stresses = torch.split(
-    #                 batch["nodes.outputs"],
-    #                 [3, 1],
-    #                 dim=-1
-    #             )
-    #         if self._config.use_global_node:  # Unnormalize global node outputs
-    #             unnormalized_pred_rigid_transformation = batch["global_node.outputs"]
-    #
-    #     # Extract vertice positions of objects (since it is unchanged)
-    #     pred_obj_pos = batch["vertices.positions"][batch["nodes.types"] == NodeType.OBJECT]
-    #     # Extract displacements of tactile sensor nodes only
-    #     unnormalized_pred_ts_disps = unnormalized_pred_disps[batch["nodes.types"] != NodeType.OBJECT]
-    #
-    #     if self._config.use_translation_inductive_bias:  # Carry out adding translation
-    #         if self._config.use_template_data:
-    #             A = batch["template.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-    #         else:
-    #             A = batch["2nd_frame.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-    #         B = batch["vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-    #
-    #         left_idx, right_idx = split_two_fingers(A)
-    #         Al, Bl = A[left_idx], B[left_idx]
-    #         Ar, Br = A[right_idx], B[right_idx]
-    #
-    #         Rl, tl = kabsch(Al, Bl)
-    #         Rr, tr = kabsch(Ar, Br)
-    #
-    #         baseline = torch.zeros_like(A)
-    #         baseline[left_idx] = Al @ Rl.T + tl
-    #         baseline[right_idx] = Ar @ Rr.T + tr
-    #
-    #         resid = unnormalized_pred_ts_disps
-    #         resid_world = torch.zeros_like(resid)
-    #         resid_world[left_idx] = resid[left_idx] @ Rl.T
-    #         resid_world[right_idx] = resid[right_idx] @ Rr.T
-    #
-    #         pred_ts_pos = baseline.clone()
-    #         pred_ts_pos[left_idx] = baseline[left_idx] + resid_world[left_idx]
-    #         pred_ts_pos[right_idx] = baseline[right_idx] + resid_world[right_idx]
-    #
-    #         # world residual → local residual per finger
-    #         world_resid = B - baseline
-    #         target_ts_disps = torch.zeros_like(world_resid)
-    #         target_ts_disps[left_idx] = world_resid[left_idx] @ Rl
-    #         target_ts_disps[right_idx] = world_resid[right_idx] @ Rr
-    #     else:
-    #         if self._config.use_template_data:
-    #             pred_ts_pos = (batch["template.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-    #                            + unnormalized_pred_ts_disps)
-    #             target_ts_disps = (batch["vertices.positions"]
-    #                                - batch["template.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
-    #         else:
-    #             pred_ts_pos = (batch["2nd_frame.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-    #                            + unnormalized_pred_ts_disps)
-    #             target_ts_disps = (batch["vertices.positions"]
-    #                                - batch["2nd_frame.vertices.positions"])[batch["nodes.types"] != NodeType.OBJECT]
-    #
-    #     # Concatenate in the same order as Datapoint (object first, then gripper)
-    #     pred_pos = torch.cat((pred_ts_pos, pred_obj_pos), dim=-2)
-    #
-    #     # Stress: zero for object nodes, keep predicted for gripper nodes
-    #     if not self._config.use_node_tetra_separate_decoders:
-    #         unnormalized_pred_stresses[batch["nodes.types"] == NodeType.OBJECT] = 0.0
-    #     unnormalized_pred_stresses = F.relu(unnormalized_pred_stresses)
-    #
-    #     # Add predicted values
-    #     batch["predictions.vertices.positions"] = pred_pos
-    #     batch["predictions.vertices.displacements"] = unnormalized_pred_disps
-    #     if self._config.use_node_tetra_separate_decoders:
-    #         batch["predictions.tetrahedra.stresses"] = unnormalized_pred_stresses
-    #     else:
-    #         batch["predictions.vertices.stresses"] = unnormalized_pred_stresses
-    #     if self._config.use_global_node:
-    #         batch["predictions.rigid_transformation"] = unnormalized_pred_rigid_transformation
-    #     ######
-    #
-    #     # Add target values
-    #     if self._config.use_node_tetra_separate_decoders:  # Extract both node and tetrahedral outputs if flag is true
-    #         # Extract only tactile sensor node outputs (target displacements)
-    #         batch["targets.nodes.outputs"] = target_ts_disps  # Target displacements
-    #         # Extract tetrahedral outputs
-    #         batch["targets.tetrahedra.outputs"] = batch["tetrahedra.stresses"]  # Target stresses
-    #     else:
-    #         # Extract only tactile sensor node outputs
-    #         batch["targets.nodes.outputs"] = torch.cat([
-    #             target_ts_disps,
-    #             batch["vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
-    #         ], dim=-1)
-    #     if self._config.use_global_node:  # Extract target rigid transformation if flag is true
-    #         if self._config.use_template_data:
-    #             batch["targets.global_node.outputs"] = batch["template.rigid_transformation"]
-    #         else:
-    #             batch["targets.global_node.outputs"] = batch["2nd_frame.rigid_transformation"]
-    #
-    #     # Normalize target outputs if flag is true
-    #     if self._config.normalize_outputs:
-    #         if self._config.use_node_tetra_separate_decoders:  # Normalize both node and tetrahedral outputs if flag is true
-    #             batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
-    #                 batch["targets.nodes.outputs"],
-    #                 is_training=self._config.is_training
-    #             )  # Normalize node outputs (Target displacements)
-    #             batch["targets.tetrahedra.normalized_outputs"] = self._tetra_output_normalizer(
-    #                 batch["targets.tetrahedra.outputs"],
-    #                 is_training=self._config.is_training
-    #             )  # Normalize tetrahedral outputs (target stresses)
-    #         else:  # Normalize only node outputs otherwise
-    #             batch["targets.nodes.normalized_outputs"] = self._node_output_normalizer(
-    #                 batch["targets.nodes.outputs"],
-    #                 is_training=self._config.is_training
-    #             )  # Normalize node outputs (Target displacements and stresses)
-    #         if self._config.use_global_node:  # Normalize global node outputs if flag is true
-    #             batch["targets.global_node.normalized_outputs"] = self._global_node_output_normalizer(
-    #                 batch["targets.global_node.outputs"],
-    #                 is_training=self._config.is_training
-    #             )
-    #
-    #     return batch

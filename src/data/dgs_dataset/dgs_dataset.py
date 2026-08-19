@@ -26,6 +26,7 @@ from utils.transform import (
     extract_normal_from_trans_matrix,
     pointcloud_tf_feature
 )
+from utils.tactile_sensor import compute_gripper_closing_directions
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
 
 
@@ -77,6 +78,10 @@ class DGSDataset(Dataset):
             if config.focused_objs and not obj in config.focused_objs:
                 continue
 
+            # Get Young's modulus and Poisson's ratio from file name
+            young = float(file.split("_")[3])
+            poisson = float(file.split("_")[4])
+
             with h5py.File(os.path.join(config.dgs_output_path, file), "r") as h5file:  # Open .h5 file
                 n_trajs = h5file["_1_stacked_forces"].shape[-2]  # Number of trajectories for each object
                 n_frames = h5file["_1_stacked_forces"].shape[-1]  # Number of frames for each trajectory
@@ -91,7 +96,8 @@ class DGSDataset(Dataset):
                     if abs(h5file["_1_stacked_forces"][traj, :].sum().item()) == 0.0:
                         continue
 
-                    # --- ADD THE OUTLIER FILTER HERE ---
+                    #####################################################
+                    # Add the outlier filter here
                     first_pos = h5file["_1_stacked_positions"][traj, 0, :]
                     force_pos = h5file["_1_stacked_positions"][traj, 49, :]
 
@@ -103,7 +109,7 @@ class DGSDataset(Dataset):
                     # Skip broken or frozen simulations
                     if min_traj_movement > 0.003 or max_traj_movement > 0.03:
                         continue
-                    # -----------------------------------
+                    #####################################################
 
                     for frame in range(n_frames): # Iterate over all frames of current trajectory
                         # Continue if focused frame list is empty or current frame exists in it, otherwise ignore
@@ -114,6 +120,8 @@ class DGSDataset(Dataset):
                         datapoint_info: DatapointInfo = {
                             "file": file, # DGS output file corresponding to considered object
                             "obj": obj, # Current object name
+                            "young": young, # Current Young's modulus
+                            "poisson": poisson, # Current Poisson's ratio
                             "traj": traj, # Current trajectory
                             "frame": frame # Current frame
                         }
@@ -164,7 +172,7 @@ class DGSDataset(Dataset):
             right_ts_template_verts
         ], dim=-2)  # All template (at-rest) vertice positions (both left and right)
         ##############################################################################
-        # TODO
+        # TODO (Honestly, I do not know why)
         ts_template_verts = transform(
             ts_template_verts.T,
             torch.tensor(
@@ -212,6 +220,8 @@ class DGSDataset(Dataset):
         ########################################
         file = datapoint_info["file"]
         obj = datapoint_info["obj"]
+        young = datapoint_info["young"]
+        poisson = datapoint_info["poisson"]
         traj = datapoint_info["traj"]
         frame = datapoint_info["frame"]
 
@@ -258,7 +268,7 @@ class DGSDataset(Dataset):
         ).T # Transpose again to obtain original shape
         obj_2nd_frame_verts = transform(
             self._obj_reusable_data[obj]["template_verts"].T, # Transpose for proper operation
-            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, frame, ...]) # TODO
+            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, 1, ...])
         ).T # Transpose again to obtain original shape
 
         # Objects corresponding to the current frame (using transformation matrix from current frame)
@@ -286,11 +296,6 @@ class DGSDataset(Dataset):
         ########################################
         ## Stress data
         ########################################
-        # Extract tactile sensor vertice stress values
-        # vert_to_tetra_relation, n_tetras_per_vert = compute_vert_to_tetra_relation(
-        #     tetras=self._ts_reusable_data["tetras"],
-        #     return_n_tetras_per_vert=True
-        # ) # Compute vertice to tetrahedron relation matrix
         ts_vert_stress_sums = torch.sparse.mm(
             self._ts_reusable_data["vert_to_tetra_relation"],
             torch.tensor(h5file["_1_stacked_stresses"][traj, frame]).unsqueeze(-1)
@@ -305,32 +310,17 @@ class DGSDataset(Dataset):
         obj_vert_stresses = torch.zeros(self._obj_reusable_data[obj]["template_verts"].shape[-2], 1)
 
         ########################################
-        ## Normal data (i.e. perpendicular things)
+        ## Gripper closing directions
         ########################################
-        obj_normal = extract_normal_from_trans_matrix(
-            trans_matrix=torch.tensor(h5file["_1_stacked_object_frame"][traj, frame, ...])
-        )
-        ts_normals = torch.stack([-obj_normal, obj_normal]) # Tactile sensor normals (both left and right)
-
-        ########################################
-        ## Rigid transformation data
-        ########################################
-        # Compute 9D transformations which give the best fits between point clouds of
-        # tactile sensors of template (or corresponding to second frame) and current frame
-        rigid_transformation_template = pointcloud_tf_feature(
-            self._ts_reusable_data["template_verts"],
-            ts_verts
-        )
-        rigid_transformation_2nd_frame = pointcloud_tf_feature(
-            ts_2nd_frame_verts,
-            ts_verts
-        )
+        gripper_closing_direction = compute_gripper_closing_directions(ts_2nd_frame_verts)
 
         ########################################
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
             "object": obj,
+            "young_modulus": young,
+            "poisson_ratio": poisson,
             "trajectory": traj,
             "frame": frame,
 
@@ -346,7 +336,6 @@ class DGSDataset(Dataset):
                 ##############################################################################
                 # self._obj_reusable_data[obj]["template_verts"]
             ], dim=-2),
-            "template.rigid_transformation": rigid_transformation_template.float(),
 
             # First frame = (Number of all vertices, 3)
             "1st_frame.vertices.positions": torch.cat([
@@ -359,13 +348,12 @@ class DGSDataset(Dataset):
                 ts_2nd_frame_verts,
                 obj_2nd_frame_verts
             ], dim=-2).float(),
-            "2nd_frame.rigid_transformation": rigid_transformation_2nd_frame.float(),
 
             # Force = (1)
             "forces": force.float(), # Key in plural form for data batch later
 
-            # Tactile sensor normals = (2, 3)
-            "tactile_sensors.normals": ts_normals.float(),
+            # Gripper closing directions = (2, 3)
+            "gripper.closing_directions": gripper_closing_direction,
 
             # Current frame vertices
             # Current frame vertice positions = (Number of all vertices, 3)
@@ -407,15 +395,15 @@ class DGSDataset(Dataset):
     @staticmethod
     def collate(datapoints: List[Datapoint]) -> Databatch:
         obj_lst = [] # List to store all objects
+        young_lst = [] # List to store all Young's moduli
+        poisson_lst = [] # List to store all Poisson's ratios
         traj_lst = [] # List to store all trajectories
         frame_lst = [] # List to store all frames
         vert_template_pos_lst = [] # List to store all template vertice positions
-        rigid_transformation_template_lst = [] # List to store all template rigid transformations
         vert_1st_frame_pos_lst = [] # List to store all first frame vertice positions
         vert_2nd_frame_pos_lst = [] # List to store all second frame vertice positions
-        rigid_transformation_2nd_frame_lst = [] # List to store all second frame rigid transformations
         forces_lst = [] # List to store all forces
-        ts_normal_lst = [] # List to store all tactile sensor normals (both left and right)
+        gripper_closing_direction_lst = [] # List to store all gripper closing directions (both left and right)
         vert_pos_lst = [] # List to store all current (considered) frame vertice positions
         vert_stress_lst = [] # List to store all vertice stresses
         tetra_lst = [] # List to store all (tactile sensor) tetrahedra
@@ -428,15 +416,15 @@ class DGSDataset(Dataset):
         current_node_index_cumul = 0 # This value is used to compute cumulative node indices when combining data points
         for idx, datapoint in enumerate(datapoints):
             obj_lst.append(datapoint["object"])
+            young_lst.append(datapoint["young_modulus"])
+            poisson_lst.append(datapoint["poisson_ratio"])
             traj_lst.append(datapoint["trajectory"])
             frame_lst.append(datapoint["frame"])
             vert_template_pos_lst.append(datapoint["template.vertices.positions"])
-            rigid_transformation_template_lst.append(datapoint["template.rigid_transformation"])
             vert_1st_frame_pos_lst.append(datapoint["1st_frame.vertices.positions"])
             vert_2nd_frame_pos_lst.append(datapoint["2nd_frame.vertices.positions"])
-            rigid_transformation_2nd_frame_lst.append(datapoint["2nd_frame.rigid_transformation"])
             forces_lst.append(datapoint["forces"])
-            ts_normal_lst.append(datapoint["tactile_sensors.normals"])
+            gripper_closing_direction_lst.append(datapoint["gripper.closing_directions"])
             vert_pos_lst.append(datapoint["vertices.positions"])
             vert_stress_lst.append(datapoint["vertices.stresses"])
             # Add cumulative value to separate sets of (tactile sensor) tetrahedra
@@ -456,15 +444,15 @@ class DGSDataset(Dataset):
         # Gather all information from all data points together
         batch: Databatch = {
             "objects": obj_lst,
+            "young_moduli": torch.tensor(young_lst),
+            "poisson_ratios": torch.tensor(poisson_lst),
             "trajectories": traj_lst,
             "frames": frame_lst,
             "template.vertices.positions": torch.cat(vert_template_pos_lst, dim=-2),
-            "template.rigid_transformations": torch.stack(rigid_transformation_template_lst, dim=-2),
             "1st_frame.vertices.positions": torch.cat(vert_1st_frame_pos_lst, dim=-2),
             "2nd_frame.vertices.positions": torch.cat(vert_2nd_frame_pos_lst, dim=-2),
-            "2nd_frame.rigid_transformations": torch.stack(rigid_transformation_2nd_frame_lst, dim=-2),
             "forces": torch.tensor(forces_lst),
-            "tactile_sensors.normals": torch.stack(ts_normal_lst, dim=-3),
+            "gripper.closing_directions": torch.stack(gripper_closing_direction_lst, dim=-3),
             "vertices.positions": torch.cat(vert_pos_lst, dim=-2),
             "vertices.stresses": torch.cat(vert_stress_lst),
             "tetrahedra": torch.cat(tetra_lst, dim=-2),
@@ -479,5 +467,5 @@ class DGSDataset(Dataset):
     def __len__(self) -> int:
         return len(self._datapoint_infos)
 
-    def __getitem__(self, idx: int) -> Datapoint:
-        return self._retrieve_datapoint(self._datapoint_infos[idx])
+    def __getitem__(self, index: int) -> Datapoint:
+        return self._retrieve_datapoint(self._datapoint_infos[index])

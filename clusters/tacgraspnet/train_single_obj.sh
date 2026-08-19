@@ -42,7 +42,9 @@ export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 -ntsd True \
 -sem False \
 -mpsm False \
--gn False \
+-gn True \
+-sogn False \
 -tib False \
 -mps 15 \
 -r 0.005 \
+-sd "/home/liris/htruong/m2internship/runs/$OBJECT_NAME/no_global"

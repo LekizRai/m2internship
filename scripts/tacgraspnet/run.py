@@ -143,11 +143,6 @@ if __name__ == "__main__":
         help="Learning rate",
         default=model_config.optimizer_params["lr"],
     )
-    # arg_parser.add_argument(
-    #     "--reduce_lr_on_plateau",
-    #     action="store_true",
-    #     help="Reduce learning rate when loss does not decline after several epochs",
-    #)
 
     ########################################
     ## TacGraspNet
@@ -210,6 +205,14 @@ if __name__ == "__main__":
         type=universal_bool,
         help="Indicate whether the global node is used or not",
         default=model_config.use_global_node,
+    )
+
+    arg_parser.add_argument(
+        "-sogn",
+        "--use_stiffness_on_global_node",
+        type=universal_bool,
+        help="Indicate whether the stiffness is on the global feature or not (otherwise, it is on node feature)",
+        default=model_config.use_stiffness_on_global_node,
     )
 
     arg_parser.add_argument(
