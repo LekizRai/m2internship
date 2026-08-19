@@ -216,15 +216,22 @@ class GraphBuildingProcessor(Processor):
             ])
 
         node_stiffs = torch.cat(node_stiffs, dim=-2)
-        node_velocities = torch.cat(node_gripper_closing_directions, dim=-2)
+        node_gripper_closing_directions = torch.cat(node_gripper_closing_directions, dim=-2)
 
         # Get node one-hot encodings of tactile sensors and object
         node_one_hot_encodings = F.one_hot(batch["nodes.types"], NodeType.NUM)
 
+        print("Stiff")
+        print(node_stiffs.device)
+        print("Closing")
+        print(node_gripper_closing_directions)
+        print("One-hot encoding")
+        print(node_one_hot_encodings)
+
         # Build node features
         node_features = torch.cat([
             node_stiffs,
-            node_velocities,
+            node_gripper_closing_directions,
             node_one_hot_encodings
         ], dim=-1)
 
