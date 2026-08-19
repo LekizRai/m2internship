@@ -194,10 +194,10 @@ class GraphBuildingProcessor(Processor):
             # Assign Young's moduli and Poisson's ratios to all nodes
             ts_node_youngs = torch.full((n_ts_nodes, 1), batch["young_moduli"][idx].item())
             ts_node_poissons = torch.full((n_ts_nodes, 1), batch["poisson_ratios"][idx].item())
-            ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1)
+            ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1).to(self._config.device)
             obj_node_youngs = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
             obj_node_poissons = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
-            obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1)
+            obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1).to(self._config.device)
             node_stiffs.extend([
                 ts_node_stiffs,
                 obj_node_stiffs
@@ -220,13 +220,6 @@ class GraphBuildingProcessor(Processor):
 
         # Get node one-hot encodings of tactile sensors and object
         node_one_hot_encodings = F.one_hot(batch["nodes.types"], NodeType.NUM)
-
-        print("Stiff")
-        print(node_stiffs.device)
-        print("Closing")
-        print(node_gripper_closing_directions)
-        print("One-hot encoding")
-        print(node_one_hot_encodings)
 
         # Build node features
         node_features = torch.cat([
