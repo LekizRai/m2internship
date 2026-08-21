@@ -29,19 +29,15 @@ class MSE(nn.Module):
             pred_disps, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
         #########################################################################
-        # disp_l2_squared_error = torch.norm(pred_disps - target_disps, p=2, dim=-1) ** 2
-        # stress_l2_squared_error = torch.norm(pred_stresses - target_stresses, p=2, dim=-1) ** 2
-        # disp_mse = torch.mean(disp_l2_error)
-        # stress_mse = torch.mean(stress_l2_error)
+        disp_l2_squared_errors = torch.norm(pred_disps - target_disps, p=2, dim=-1) ** 2
+        stress_l2_squared_errors = torch.norm(pred_stresses - target_stresses, p=2, dim=-1) ** 2
+        disp_mse = torch.mean(disp_l2_squared_errors)
+        stress_mse = torch.mean(stress_l2_squared_errors)
         #########################################################################
-        # Elementwise MSE
-        # print("--- SCALE DIAGNOSTIC ---")
-        # print("Pred Disps Min/Max:", pred_disps.min().item(), pred_disps.max().item())
-        # print("Target Disps Min/Max:", target_disps.min().item(), target_disps.max().item())
-        # print("Pred Stress Min/Max:", pred_stresses.min().item(), pred_stresses.max().item())
-        # print("Target Stress Min/Max:", target_stresses.min().item(), target_stresses.max().item())
-        disp_mse = F.mse_loss(pred_disps, target_disps)
-        stress_mse = F.mse_loss(pred_stresses, target_stresses)
+        # Elementwise MSE in original implementation
+        # disp_mse = F.mse_loss(pred_disps, target_disps)
+        # stress_mse = F.mse_loss(pred_stresses, target_stresses)
+        #########################################################################
         return disp_mse + stress_mse
 
     def __str__(self) -> str:

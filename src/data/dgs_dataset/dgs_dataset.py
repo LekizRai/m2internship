@@ -315,6 +315,13 @@ class DGSDataset(Dataset):
         gripper_closing_direction = compute_gripper_closing_directions(ts_2nd_frame_verts)
 
         ########################################
+        ## Gripper poses
+        ########################################
+        gripper_pose = torch.tensor(h5py.File(
+            os.path.join(self._config.dgn_dataset_path, obj, obj + "_grasps.h5"), "r"
+        )["poses"][traj, ...])
+
+        ########################################
         ## Assign data to data point
         ########################################
         datapoint: Datapoint = {
@@ -353,7 +360,10 @@ class DGSDataset(Dataset):
             "forces": force.float(), # Key in plural form for data batch later
 
             # Gripper closing directions = (2, 3)
-            "gripper.closing_directions": gripper_closing_direction,
+            "gripper.closing_directions": gripper_closing_direction.float(),
+
+            # Gripper pose
+            "gripper.pose": gripper_pose.float(),
 
             # Current frame vertices
             # Current frame vertice positions = (Number of all vertices, 3)
@@ -404,6 +414,7 @@ class DGSDataset(Dataset):
         vert_2nd_frame_pos_lst = [] # List to store all second frame vertice positions
         forces_lst = [] # List to store all forces
         gripper_closing_direction_lst = [] # List to store all gripper closing directions (both left and right)
+        gripper_pose_lst = [] # List to store all gripper poses
         vert_pos_lst = [] # List to store all current (considered) frame vertice positions
         vert_stress_lst = [] # List to store all vertice stresses
         tetra_lst = [] # List to store all (tactile sensor) tetrahedra
@@ -425,6 +436,7 @@ class DGSDataset(Dataset):
             vert_2nd_frame_pos_lst.append(datapoint["2nd_frame.vertices.positions"])
             forces_lst.append(datapoint["forces"])
             gripper_closing_direction_lst.append(datapoint["gripper.closing_directions"])
+            gripper_pose_lst.append(datapoint["gripper.pose"])
             vert_pos_lst.append(datapoint["vertices.positions"])
             vert_stress_lst.append(datapoint["vertices.stresses"])
             # Add cumulative value to separate sets of (tactile sensor) tetrahedra
@@ -453,6 +465,7 @@ class DGSDataset(Dataset):
             "2nd_frame.vertices.positions": torch.cat(vert_2nd_frame_pos_lst, dim=-2),
             "forces": torch.tensor(forces_lst),
             "gripper.closing_directions": torch.stack(gripper_closing_direction_lst, dim=-3),
+            "gripper.poses": torch.stack(gripper_pose_lst, dim=-2),
             "vertices.positions": torch.cat(vert_pos_lst, dim=-2),
             "vertices.stresses": torch.cat(vert_stress_lst),
             "tetrahedra": torch.cat(tetra_lst, dim=-2),

@@ -7,6 +7,7 @@ from tqdm import tqdm
 from datetime import datetime
 from dataclasses import asdict
 from torch.optim import Adam
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 
 from data.dgs_dataset.dgs_dataset_config import DGSDatasetConfig
@@ -114,6 +115,7 @@ def train(model_config: TacGraspNetConfig):
 
         # Initialize optimizer
         optimizer = Adam(params=model.parameters(), **model_config.optimizer_params)
+        scheduler = ReduceLROnPlateau(optimizer, factor=0.5, patience=5)
 
         # Initialize loss and score functions
         loss_fn = MSE(model_config)
@@ -137,28 +139,9 @@ def train(model_config: TacGraspNetConfig):
             # Set model's mode to "train"
             model.train()
             model.set_is_training(False)
-            # model.set_is_training(True) # Set flag to true to wake up normalizers TODO
+            # model.set_is_training(True) # Set flag to true to wake up normalizers (set for flying normalization only)
 
             # Train
-            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
-                # Optimizing model
-                optimizer.zero_grad()
-                preprocessed_batch = preprocessor(batch)
-                prediction = model(preprocessed_batch)
-                loss = loss_fn(prediction)
-                loss.backward()
-                optimizer.step()
-
-            ########################################
-            ## Validate model
-            ########################################
-            # Set model's mode to "eval"
-            model.eval()
-            model.set_is_training(False) # Set flag to false to suspend normalizers
-
-            ########################################
-            ## Training set
-            ########################################
             # Initialize training loss and score sums
             train_loss_sum = 0.0
             train_score_sums = {}
@@ -168,23 +151,31 @@ def train(model_config: TacGraspNetConfig):
             # Number of batches to compute average loss and scores
             n_batches = 0.0
 
-            # Train
-            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training losses and scores", mininterval=5.0):
+            for batch in tqdm(train_loader, desc=f"Epoch {epoch} training", mininterval=5.0):
+                # Optimizing model
+                optimizer.zero_grad()
+                preprocessed_batch = preprocessor(batch)
+                prediction = model(preprocessed_batch)
+                loss = loss_fn(prediction)
+                loss.backward()
+                optimizer.step()
+
                 # Update training loss and score sums
-                with torch.no_grad():
-                    preprocessed_batch = preprocessor(batch)
-                    prediction = model(preprocessed_batch)
-                    loss = loss_fn(prediction)
-                    train_loss_sum += loss.item()
-                    for score_class in score_classes:
-                        train_score_sums[score_class] += score_fns[score_class](batch).item()
+                print(loss.item())
+                train_loss_sum += loss.item()
+                for score_class in score_classes:
+                    train_score_sums[score_class] += score_fns[score_class](batch).item()
 
                 # Update number of batches variable
                 n_batches += 1.0
 
             ########################################
-            ## Validation set
+            ## Validate model
             ########################################
+            # Set model's mode to "eval"
+            model.eval()
+            model.set_is_training(False) # Set flag to false to suspend normalizers
+
             # Initialize validation loss and score sums
             validation_loss_sum = 0.0
             validation_score_sums = {}
@@ -235,9 +226,15 @@ def train(model_config: TacGraspNetConfig):
                 checkpoint = (
                     model.state_dict(),
                     optimizer.state_dict(),
+                    scheduler.state_dict(),
                     epoch,
                 )
                 torch.save(checkpoint, checkpoint_path)
+
+            ########################################
+            ## Scheduling
+            ########################################
+            scheduler.step(validation_loss_sum / n_data_points)
 
         return None
     else:

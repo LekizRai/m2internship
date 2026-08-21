@@ -45,10 +45,13 @@ class TacGraspNetConfig(Config):
     use_message_passing_separate_mlps: bool = False
 
     # Indicate whether the global node is used or not
-    use_global_node: bool = True
+    use_global_node: bool = False
 
-    # Indicate whether the stiffness is on the global feature or not (otherwise, it is on node feature)
-    use_stiffness_on_global_node: bool = False
+    # Indicate whether the stiffness is used as node features or not
+    use_stiffness: bool = False
+
+    # Indicate whether the gripper pose is used as global feature or not
+    use_gripper_pose: bool = False
 
     # Indicate whether translation inductive bias is used for training and evaluation or not
     use_translation_inductive_bias: bool = True
@@ -77,7 +80,7 @@ class TacGraspNetConfig(Config):
     tetra_feature_dim: int = 1 # Just a representation, may be implemented later
 
     # Global node configuration
-    global_node_feature_dim: int = 2 # Stiffness (which is Young's modulus + Poisson's ratio) (2)
+    global_node_feature_dim: int = 7 # Gripper pose (7)
 
     # Output configuration
     if use_node_tetra_separate_decoders: # Displacement predictions on nodes, stress predictions on tetrahedra
@@ -122,7 +125,7 @@ class TacGraspNetConfig(Config):
     batch_size: int = 1
 
     # Number of epochs
-    n_epochs: int = 1
+    n_epochs: int = 2
 
     # Optimizer
     optimizer_params: Dict = field(default_factory=lambda: {
@@ -176,7 +179,8 @@ class TacGraspNetConfig(Config):
         self.use_separate_edge_mlps = args.use_separate_edge_mlps
         self.use_message_passing_separate_mlps = args.use_message_passing_separate_mlps
         self.use_global_node = args.use_global_node
-        self.use_stiffness_on_global_node = args.use_stiffness_on_global_node
+        self.use_stiffness = args.use_stiffness
+        self.use_gripper_pose = args.use_gripper_pose
         self.use_translation_inductive_bias = args.use_translation_inductive_bias
 
         # Modeling configuration

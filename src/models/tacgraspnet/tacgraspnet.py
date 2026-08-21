@@ -222,7 +222,7 @@ class TacGraspNet(nn.Module):
                 cur_pred_ts_pos[left_idx] = baseline[left_idx] + resid_world[left_idx]
                 cur_pred_ts_pos[right_idx] = baseline[right_idx] + resid_world[right_idx]
 
-                # world residual → local residual per finger
+                # Convert from world residual to local residual per finger
                 world_resid = B - baseline
                 cur_target_ts_disps = torch.zeros_like(world_resid)
                 cur_target_ts_disps[left_idx] = world_resid[left_idx] @ Rl

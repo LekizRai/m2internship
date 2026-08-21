@@ -17,8 +17,8 @@ class DisplacementMAE(nn.Module):
         # Extract only target and predicted displacements from tactile sensor nodes
         target_disps = batch["vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
         pred_disps = batch["predictions.vertices.positions"][batch["nodes.types"] != NodeType.OBJECT]
-        disp_l1_error = torch.norm(pred_disps - target_disps, p=1, dim=-1)
-        return torch.mean(disp_l1_error)
+        disp_l1_errors = torch.norm(pred_disps - target_disps, p=1, dim=-1)
+        return torch.mean(disp_l1_errors)
 
     def __str__(self) -> str:
         return "displacement_mae"
@@ -40,9 +40,8 @@ class StressMAE(nn.Module):
             pred_stresses = batch["predictions.vertices.stresses"][batch["nodes.types"] != NodeType.OBJECT]
             # _, pred_stresses = torch.split(pred, [3, 1], dim=-1)
 
-        stress_l1_error = torch.norm(pred_stresses - target_stresses, p=1, dim=-1)
-        # print(max(abs(target_stresses-pred_stresses)))
-        return torch.mean(stress_l1_error)
+        stress_l1_errors = torch.norm(pred_stresses - target_stresses, p=1, dim=-1)
+        return torch.mean(stress_l1_errors)
 
     def __str__(self) -> str:
         return "stress_mae"

@@ -208,11 +208,19 @@ if __name__ == "__main__":
     )
 
     arg_parser.add_argument(
-        "-sogn",
-        "--use_stiffness_on_global_node",
+        "-us",
+        "--use_stiffness",
         type=universal_bool,
-        help="Indicate whether the stiffness is on the global feature or not (otherwise, it is on node feature)",
-        default=model_config.use_stiffness_on_global_node,
+        help="Indicate whether the stiffnesses are used as node features or not",
+        default=model_config.use_stiffness,
+    )
+
+    arg_parser.add_argument(
+        "-ugp",
+        "--use_gripper_pose",
+        type=universal_bool,
+        help="Indicate whether the gripper poses are used as global features or not",
+        default=model_config.use_gripper_pose,
     )
 
     arg_parser.add_argument(

@@ -20,6 +20,6 @@ def compute_gripper_closing_directions(
     right_gripper_closing_direction = left_centroid - right_centroid
 
     return torch.stack([
-        F.normalize(left_gripper_closing_direction, dim=-1) / 50,
-        F.normalize(right_gripper_closing_direction, dim=-1) / 50
+        F.normalize(left_gripper_closing_direction, dim=-1),
+        F.normalize(right_gripper_closing_direction, dim=-1)
     ])

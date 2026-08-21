@@ -34,7 +34,7 @@ export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 -vs 0.2 \
 -bs 1 \
 -ne 20 \
--lr 8e-5 \
+-lr 1e-4 \
 -td False \
 -fln False \
 -nf True \
@@ -42,9 +42,10 @@ export PYTHONPATH="${PWD}:${PWD}/src:${PYTHONPATH}"
 -ntsd True \
 -sem False \
 -mpsm False \
--gn True \
--sogn False \
--tib False \
+-gn False \
+-us False \
+-ugp False \
+-tib True \
 -mps 15 \
 -r 0.005 \
--sd "/home/liris/htruong/m2internship/runs/$OBJECT_NAME/no_global"
+-sd "/home/liris/htruong/m2internship/runs/experiment_1/single_object/$OBJECT_NAME/no_global"

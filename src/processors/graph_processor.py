@@ -37,12 +37,9 @@ class GraphBuildingProcessor(Processor):
         # Build global node features
         # Note that for each graph (i.e. each data point) we have one unique global node
         if self._config.use_global_node:
-            if self._config.use_stiffness_on_global_node:
-                global_node_features = torch.cat([
-                    batch["young_moduli"].reshape(-1, 1),
-                    batch["poisson_ratios"].reshape(-1, 1)
-                ], dim=-1)
-            else:
+            if self._config.use_gripper_pose: # Set gripper pose as global feature if flag is true
+                global_node_features = batch["gripper.poses"]
+            else: # Otherwise, set as zeros
                 n_data_points = torch.unique(batch["datapoints.indices"]).shape[0] # Number of data points (i.e. number of global nodes)
                 global_node_features = torch.zeros(n_data_points, self._config.global_node_feature_dim)
             batch["global_nodes.features"] = global_node_features
@@ -183,25 +180,36 @@ class GraphBuildingProcessor(Processor):
 
     def _build_node_features(self, batch: Databatch) -> torch.Tensor:
         # Get node stiffnesses and gripper closing directions of tactile sensors and object separately for each data point
-        node_stiffs = [] # Initialize node
-        node_gripper_closing_directions = [] # Initialize node velocity list
+        node_stiffs = [] # Initialize node stiffness list
+        node_gripper_closing_directions = [] # Initialize node gripper closing direction list
         for idx in torch.unique(batch["datapoints.indices"]): # Iterate over all data points
             node_types = batch["nodes.types"][batch["datapoints.indices"] == idx] # Get node types of current (considered) data point
             n_obj_nodes = int((node_types == NodeType.OBJECT).sum().item())  # Get number of object nodes (vertices)
             n_ts_nodes = len(node_types) - n_obj_nodes  # Get number of tactile sensor nodes
             n_ts_comp_nodes = n_ts_nodes // 2  # Get number of each tactile sensor (component) nodes (left and right)
 
-            # Assign Young's moduli and Poisson's ratios to all nodes
-            ts_node_youngs = torch.full((n_ts_nodes, 1), batch["young_moduli"][idx].item())
-            ts_node_poissons = torch.full((n_ts_nodes, 1), batch["poisson_ratios"][idx].item())
-            ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1).to(self._config.device)
-            obj_node_youngs = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
-            obj_node_poissons = torch.full((n_obj_nodes, 1), 0.0) # No need, the default value is zero
-            obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1).to(self._config.device)
-            node_stiffs.extend([
-                ts_node_stiffs,
-                obj_node_stiffs
-            ])
+            if self._config.use_stiffness: # Compute Young's moduli and Poisson's ratios for all nodes if flag is true
+                ts_node_youngs = torch.full((n_ts_nodes, 1), batch["young_moduli"][idx].item())
+                ts_node_poissons = torch.full((n_ts_nodes, 1), batch["poisson_ratios"][idx].item())
+                ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1).to(self._config.device)
+                obj_node_youngs = torch.full((n_obj_nodes, 1), 1e7) # The default value is 1e7 for rigid object
+                obj_node_poissons = torch.full((n_obj_nodes, 1), 0.0) # The default value is zero because rigid object is not deformable
+                obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1).to(self._config.device)
+                node_stiffs.extend([
+                    ts_node_stiffs,
+                    obj_node_stiffs
+                ])
+            else: # Otherwise, set as defaults
+                ts_node_youngs = torch.full((n_ts_nodes, 1), 5e5) # The default value is 5e5 based on dataset
+                ts_node_poissons = torch.full((n_ts_nodes, 1), 0.4) # The default value is 0.4 based on dataset
+                ts_node_stiffs = torch.cat([ts_node_youngs, ts_node_poissons], dim=-1).to(self._config.device)
+                obj_node_youngs = torch.full((n_obj_nodes, 1), 1e7)  # The default value is 1e7 for rigid object
+                obj_node_poissons = torch.full((n_obj_nodes, 1), 0.0)  # The default value is zero because rigid object is not deformable
+                obj_node_stiffs = torch.cat([obj_node_youngs, obj_node_poissons], dim=-1).to(self._config.device)
+                node_stiffs.extend([
+                    ts_node_stiffs,
+                    obj_node_stiffs
+                ])
 
             # Compute all node's corresponding gripper closing direction (both tactile sensors and object)
             ts_left_node_gripper_closing_directions = batch["gripper.closing_directions"][idx, 0, ...].expand(n_ts_comp_nodes, -1)
